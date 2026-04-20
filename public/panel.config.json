@@ -1,0 +1,9 @@
+{
+  "locationLabel": "Level 3 • North Wing • Toilet A",
+  "toiletId": "demo-1",
+  "greeting": "Please rate our toilet!",
+  "brandTitle": "",
+  "thankYouResetMs": 8000,
+  "simulateLiveUpdates": true,
+  "timezone": "Asia/Singapore"
+}
