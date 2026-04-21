@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["panel.config.json", "favicon.svg", "pwa-192x192.png", "pwa-512x512.png"],
+      includeAssets: ["favicon.svg", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: {
         name: "Toilet Feedback Panel",
         short_name: "Toilet Panel",
