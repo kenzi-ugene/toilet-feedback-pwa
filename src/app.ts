@@ -1,9 +1,10 @@
 import type { PanelConfig } from "./config";
+import { buildTier1RatingRows, buildTier2Categories } from "./feedbackAssets";
 import { nextScreenAfterRating } from "./flow";
+import { clearGateSetup } from "./gate";
 import type { Screen } from "./flow";
 import type { Rating } from "./types/rating";
 import type { PanelDataProvider, PanelState } from "./types/panelState";
-import { TIER2_CATEGORIES } from "./tier2Categories";
 
 interface AppModel {
   screen: Screen;
@@ -29,6 +30,16 @@ export function createApp(
   shell.className = "shell";
   root.appendChild(shell);
 
+  const logout = document.createElement("button");
+  logout.type = "button";
+  logout.className = "logout-btn";
+  logout.textContent = "Log out";
+  logout.addEventListener("click", () => {
+    clearGateSetup();
+    window.location.reload();
+  });
+  root.appendChild(logout);
+
   const render = (): void => {
     const snapshot = data.getSnapshot();
 
@@ -42,7 +53,7 @@ export function createApp(
     shell.innerHTML = "";
 
     const bg = document.createElement("div");
-    bg.className = "bg";
+    bg.className = model.screen === "tier2" ? "bg bg-tier2" : "bg";
     shell.appendChild(bg);
 
     if (model.screen === "tier1") {
@@ -155,12 +166,14 @@ function renderTier1(
 
   const sidebar = document.createElement("aside");
   sidebar.className = "sidebar";
-  sidebar.appendChild(metricCard("Today’s footfall", String(snapshot.footfallToday), "👤", "footfall"));
   sidebar.appendChild(
-    metricCard("Temperature", `${snapshot.temperatureC}°C`, "☀️", "temp"),
+    metricCard("Today’s Footfall", String(snapshot.footfallToday), "/icon-footfall.png", "footfall"),
   );
   sidebar.appendChild(
-    metricCard("Humidity", `${snapshot.humidityPct}%`, "💧", "humidity"),
+    metricCard("Temperature", `${snapshot.temperatureC}°C`, "/icon-temperature.png", "temp"),
+  );
+  sidebar.appendChild(
+    metricCard("Humidity", `${snapshot.humidityPct}%`, "/icon-humidity.png", "humidity"),
   );
 
   const panel = document.createElement("div");
@@ -177,12 +190,7 @@ function renderTier1(
 
   const ratings = document.createElement("div");
   ratings.className = "ratings";
-  const ratingsMeta: { rating: Rating; label: string; face: string }[] = [
-    { rating: "excellent", label: "Excellent", face: "😍" },
-    { rating: "good", label: "Good", face: "🙂" },
-    { rating: "neutral", label: "Neutral", face: "😐" },
-    { rating: "poor", label: "Poor", face: "☹️" },
-  ];
+  const ratingsMeta = buildTier1RatingRows(config);
   for (const item of ratingsMeta) {
     ratings.appendChild(ratingButton(item, onPick));
   }
@@ -236,33 +244,45 @@ function updateTier1Snapshot(shell: HTMLElement, snapshot: PanelState): void {
   }
 }
 
-function metricCard(title: string, value: string, icon: string, testId: string): HTMLElement {
+function metricCard(title: string, value: string, iconSrc: string, testId: string): HTMLElement {
   const card = document.createElement("div");
   card.className = "glass-card metric";
   card.dataset.metric = testId;
 
   const top = document.createElement("div");
   top.className = "metric-top";
-  const ic = document.createElement("span");
+  const ic = document.createElement("img");
   ic.className = "metric-icon";
-  ic.textContent = icon;
+  ic.src = iconSrc;
+  ic.alt = "";
+  ic.setAttribute("aria-hidden", "true");
   const ttl = document.createElement("span");
   ttl.className = "metric-title";
   ttl.textContent = title;
   top.appendChild(ic);
   top.appendChild(ttl);
 
+  const divider = document.createElement("div");
+  divider.className = "metric-divider";
+  divider.setAttribute("aria-hidden", "true");
+
   const val = document.createElement("div");
   val.className = "metric-value";
   val.textContent = value;
 
   card.appendChild(top);
+  card.appendChild(divider);
   card.appendChild(val);
   return card;
 }
 
 function ratingButton(
-  item: { rating: Rating; label: string; face: string },
+  item: {
+    rating: Rating;
+    label: string;
+    imageUrl: string | null;
+    emojiFallback: string;
+  },
   onPick: (rating: Rating) => void,
 ): HTMLElement {
   const btn = document.createElement("button");
@@ -270,15 +290,24 @@ function ratingButton(
   btn.className = "rating-btn";
   btn.dataset.rating = item.rating;
 
-  const face = document.createElement("span");
-  face.className = "rating-face";
-  face.textContent = item.face;
+  if (item.imageUrl) {
+    const face = document.createElement("img");
+    face.className = "rating-face";
+    face.src = item.imageUrl;
+    face.alt = "";
+    face.setAttribute("aria-hidden", "true");
+    btn.appendChild(face);
+  } else {
+    const face = document.createElement("span");
+    face.className = "rating-face";
+    face.textContent = item.emojiFallback;
+    btn.appendChild(face);
+  }
 
   const label = document.createElement("span");
   label.className = "rating-label";
   label.textContent = item.label;
 
-  btn.appendChild(face);
   btn.appendChild(label);
   btn.addEventListener("click", () => onPick(item.rating));
   return btn;
@@ -288,10 +317,6 @@ function renderTier2(config: PanelConfig, onPick: (id: string) => void): HTMLEle
   const wrap = document.createElement("div");
   wrap.className = "tier2";
 
-  const location = document.createElement("div");
-  location.className = "location";
-  location.textContent = config.locationLabel;
-
   const title = document.createElement("h1");
   title.className = "tier2-title";
   title.textContent = "Let us know the areas for improvement";
@@ -299,15 +324,17 @@ function renderTier2(config: PanelConfig, onPick: (id: string) => void): HTMLEle
   const grid = document.createElement("div");
   grid.className = "icon-grid";
 
-  for (const cat of TIER2_CATEGORIES) {
+  for (const cat of buildTier2Categories(config)) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "icon-tile";
     btn.dataset.category = cat.id;
 
-    const sym = document.createElement("span");
+    const sym = document.createElement("img");
     sym.className = "icon-tile-symbol";
-    sym.textContent = cat.symbol;
+    sym.src = cat.iconSrc;
+    sym.alt = "";
+    sym.setAttribute("aria-hidden", "true");
 
     const lab = document.createElement("span");
     lab.className = "icon-tile-label";
@@ -319,7 +346,6 @@ function renderTier2(config: PanelConfig, onPick: (id: string) => void): HTMLEle
     grid.appendChild(btn);
   }
 
-  wrap.appendChild(location);
   wrap.appendChild(title);
   wrap.appendChild(grid);
   return wrap;

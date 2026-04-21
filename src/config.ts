@@ -1,3 +1,19 @@
+/** Matches Laravel `FeedbackRating` rows used on the legacy Blade panel. */
+export interface FeedbackRatingConfig {
+  rating: number;
+  caption: string;
+  image?: string | null;
+  /** Laravel: 1 = active; omit or non-0 treated as active. */
+  active?: number;
+}
+
+/** Matches Laravel `feedback_panel.items[]` (pivot to feedback panel). */
+export interface FeedbackItemConfig {
+  id: number;
+  name: string;
+  image: string;
+}
+
 export interface PanelConfig {
   locationLabel: string;
   toiletId: string;
@@ -11,6 +27,21 @@ export interface PanelConfig {
   simulateLiveUpdates: boolean;
   /** Optional IANA timezone for mock midnight footfall reset (Phase 1 demo). */
   timezone: string;
+  /**
+   * Base URL for uploaded assets (Laravel `RESOURCE_URL`), no trailing slash.
+   * Used with `feedbackRatings[].image` and `feedbackItems[].image` paths.
+   */
+  resourceUrl?: string;
+  /**
+   * When present, Tier 1 uses these ratings (API order: higher `rating` = more positive).
+   * Maps to internal ratings: 4 → excellent, 3 → good, 2 → neutral, 1 → poor.
+   */
+  feedbackRatings?: FeedbackRatingConfig[];
+  /**
+   * When present, Tier 2 shows these items with `Voyager`-style image paths.
+   * Falls back to bundled static categories if missing or no resolvable images.
+   */
+  feedbackItems?: FeedbackItemConfig[];
 }
 
 const defaultConfig: PanelConfig = {

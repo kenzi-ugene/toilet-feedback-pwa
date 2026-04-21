@@ -5,5 +5,11 @@
   "brandTitle": "",
   "thankYouResetMs": 8000,
   "simulateLiveUpdates": true,
-  "timezone": "Asia/Singapore"
+  "timezone": "Asia/Singapore",
+  "feedbackRatings": [
+    { "rating": 4, "caption": "Awesome", "active": 1 },
+    { "rating": 3, "caption": "Good", "active": 1 },
+    { "rating": 2, "caption": "Neutral", "active": 1 },
+    { "rating": 1, "caption": "Poor", "active": 1 }
+  ]
 }
