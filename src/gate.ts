@@ -1,11 +1,12 @@
+import type { FeedbackPanelApiResponse } from "./backend";
+
 const STORAGE_KEY = "simpple-feedback-panel-setup";
-const STORAGE_VERSION = 1;
-/** Kiosk unlock password (fixed for Phase 1). */
-const GATE_PASSWORD = "123456";
+const STORAGE_VERSION = 2;
 
 interface StoredSetup {
   v: number;
   locationCode: string;
+  password: string;
 }
 
 function readStored(): StoredSetup | null {
@@ -15,7 +16,13 @@ function readStored(): StoredSetup | null {
       return null;
     }
     const data = JSON.parse(raw) as StoredSetup;
-    if (data.v !== STORAGE_VERSION || typeof data.locationCode !== "string" || data.locationCode.trim() === "") {
+    if (
+      data.v !== STORAGE_VERSION ||
+      typeof data.locationCode !== "string" ||
+      data.locationCode.trim() === "" ||
+      typeof data.password !== "string" ||
+      data.password.trim() === ""
+    ) {
       return null;
     }
     return data;
@@ -24,10 +31,11 @@ function readStored(): StoredSetup | null {
   }
 }
 
-function writeStored(locationCode: string): void {
+function writeStored(locationCode: string, password: string): void {
   const payload: StoredSetup = {
     v: STORAGE_VERSION,
     locationCode: locationCode.trim(),
+    password: password.trim(),
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
@@ -36,14 +44,57 @@ export function clearGateSetup(): void {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+export interface StoredGateSetup {
+  locationCode: string;
+  password: string;
+}
+
+export function getStoredGateSetup(): StoredGateSetup | null {
+  const stored = readStored();
+  if (!stored) {
+    return null;
+  }
+  return {
+    locationCode: stored.locationCode,
+    password: stored.password,
+  };
+}
+
+export function saveGateSetup(locationCode: string, password: string): void {
+  writeStored(locationCode, password);
+}
+
+interface GateValidatedPayload {
+  locationCode: string;
+  panelResponse: FeedbackPanelApiResponse | null;
+}
+
+interface GateValidationResult {
+  isValid: boolean;
+  panelResponse: FeedbackPanelApiResponse | null;
+}
+
 /**
  * On first visit (no stored setup), shows a full-screen gate for password + location code.
  * Returns the location code to use for the panel (from storage or fresh input).
  */
-export function runGate(root: HTMLElement): Promise<string> {
+export async function runGate(
+  root: HTMLElement,
+  validateCredentials: (
+    locationCode: string,
+    password: string,
+  ) => Promise<GateValidationResult>,
+): Promise<GateValidatedPayload> {
   const existing = readStored();
   if (existing) {
-    return Promise.resolve(existing.locationCode);
+    const storedResult = await validateCredentials(existing.locationCode, existing.password);
+    if (storedResult.isValid) {
+      return {
+        locationCode: existing.locationCode,
+        panelResponse: storedResult.panelResponse,
+      };
+    }
+    clearGateSetup();
   }
 
   return new Promise((resolve) => {
@@ -105,10 +156,10 @@ export function runGate(root: HTMLElement): Promise<string> {
     submit.textContent = "Continue";
 
     form.appendChild(err);
-    form.appendChild(pwdLabel);
-    form.appendChild(pwd);
     form.appendChild(locLabel);
     form.appendChild(loc);
+    form.appendChild(pwdLabel);
+    form.appendChild(pwd);
     form.appendChild(submit);
 
     card.appendChild(title);
@@ -119,32 +170,52 @@ export function runGate(root: HTMLElement): Promise<string> {
 
     pwd.focus();
 
-    form.addEventListener("submit", (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      err.hidden = true;
-      err.textContent = "";
+      hideError(err);
 
       const password = pwd.value.trim();
       const locationCode = loc.value.trim();
 
       if (locationCode === "") {
-        err.textContent = "Please enter a location code.";
-        err.hidden = false;
+        showError(err, "Please enter a location code.");
         loc.focus();
         return;
       }
 
-      if (password !== GATE_PASSWORD) {
-        err.textContent = "Incorrect password.";
-        err.hidden = false;
+      submit.disabled = true;
+      submit.textContent = "Checking...";
+
+      const result = await validateCredentials(locationCode, password);
+      if (!result.isValid) {
+        showError(err, "Credentials not valid.");
         pwd.value = "";
         pwd.focus();
+        resetSubmitButton(submit);
         return;
       }
 
-      writeStored(locationCode);
+      writeStored(locationCode, password);
       root.innerHTML = "";
-      resolve(locationCode);
+      resolve({
+        locationCode,
+        panelResponse: result.panelResponse,
+      });
     });
   });
+}
+
+function showError(element: HTMLElement, message: string): void {
+  element.textContent = message;
+  element.hidden = false;
+}
+
+function hideError(element: HTMLElement): void {
+  element.textContent = "";
+  element.hidden = true;
+}
+
+function resetSubmitButton(button: HTMLButtonElement): void {
+  button.disabled = false;
+  button.textContent = "Continue";
 }

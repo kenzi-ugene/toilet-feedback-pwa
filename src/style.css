@@ -102,6 +102,57 @@ body.portrait-blocked #app .shell {
   width: 100%;
 }
 
+.feedback-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 20, 12, 0.56);
+  backdrop-filter: blur(2px);
+}
+
+.feedback-loading-overlay[hidden] {
+  display: none !important;
+}
+
+.feedback-loading-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(18, 48, 31, 0.9);
+  box-shadow: var(--shadow);
+}
+
+.feedback-loading-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.24);
+  border-top-color: rgba(255, 255, 255, 0.95);
+  animation: feedback-spin 0.75s linear infinite;
+}
+
+.feedback-loading-text {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+@keyframes feedback-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .bg {
   position: absolute;
   inset: 0;
@@ -334,6 +385,12 @@ img.rating-face {
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
 }
 
+.qr-image {
+  object-fit: contain;
+  background: #fff;
+  padding: 4px;
+}
+
 .sanitise-note {
   margin: 0;
   font-size: clamp(0.75rem, 1vw, 0.9rem);
@@ -489,6 +546,40 @@ img.rating-face {
 .logout-btn:focus-visible {
   background: rgba(0, 0, 0, 0.5);
   outline: none;
+}
+
+.reload-btn {
+  position: fixed;
+  left: 92.5%;
+  top: 2%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reload-btn-icon {
+  width: 22px;
+  height: 22px;
+  opacity: 0.45;
+}
+
+.reload-btn:hover .reload-btn-icon,
+.reload-btn:focus-visible .reload-btn-icon {
+  opacity: 0.9;
+}
+
+.reload-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
 }
 
 @media (max-width: 900px) {

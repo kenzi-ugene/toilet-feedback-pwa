@@ -1,4 +1,4 @@
-import type { FeedbackRatingConfig, PanelConfig } from "./config";
+import type { FeedbackItemConfig, FeedbackRatingConfig, PanelConfig } from "./config";
 import type { FeedbackCategory } from "./tier2Categories";
 import { TIER2_CATEGORIES } from "./tier2Categories";
 import type { Rating } from "./types/rating";
@@ -15,6 +15,13 @@ const EMOJI_BY_RATING: Record<Rating, string> = {
   good: "🙂",
   neutral: "😐",
   poor: "☹️",
+};
+
+const LOCAL_RATING_IMAGE_BY_RATING: Record<Rating, string> = {
+  excellent: "/awesome_face.png",
+  good: "/good_face.png",
+  neutral: "/neutral_face.png",
+  poor: "/sad_face.png",
 };
 
 /**
@@ -59,33 +66,19 @@ export function apiRatingToRating(apiRating: number): Rating | null {
   }
 }
 
-function buildDefaultTier1Ratings(): Tier1RatingRow[] {
-  const rows: { rating: Rating; label: string }[] = [
-    { rating: "excellent", label: "Excellent" },
-    { rating: "good", label: "Good" },
-    { rating: "neutral", label: "Neutral" },
-    { rating: "poor", label: "Poor" },
-  ];
-  return rows.map((r) => ({
-    rating: r.rating,
-    label: r.label,
-    imageUrl: null,
-    emojiFallback: EMOJI_BY_RATING[r.rating],
-  }));
-}
-
-/**
- * Tier 1 rating buttons: prefer `panel.config.json` `feedbackRatings` + `resourceUrl`,
- * else emoji fallbacks (legacy Phase 1 behaviour).
- */
+/** Tier 1 rating buttons: prefer backend-provided `feedbackRatings` + `resourceUrl`. */
 export function buildTier1RatingRows(config: PanelConfig): Tier1RatingRow[] {
+  if (config.enableRatingsFeedback !== true) {
+    return [];
+  }
+
   const list = config.feedbackRatings;
   if (!list?.length) {
-    return buildDefaultTier1Ratings();
+    return [];
   }
 
   const sorted = [...list]
-    .filter((r: FeedbackRatingConfig) => r.active !== 0)
+    .filter((r: FeedbackRatingConfig) => r.active === 1)
     .sort((a, b) => b.rating - a.rating);
 
   const out: Tier1RatingRow[] = [];
@@ -94,7 +87,7 @@ export function buildTier1RatingRows(config: PanelConfig): Tier1RatingRow[] {
     if (!rating) {
       continue;
     }
-    const imageUrl = resolveResourceImageUrl(config.resourceUrl, row.image);
+    const imageUrl = resolveResourceImageUrl(config.resourceUrl, row.image) ?? LOCAL_RATING_IMAGE_BY_RATING[rating];
     out.push({
       rating,
       label: row.caption,
@@ -103,7 +96,7 @@ export function buildTier1RatingRows(config: PanelConfig): Tier1RatingRow[] {
     });
   }
 
-  return out.length > 0 ? out : buildDefaultTier1Ratings();
+  return out;
 }
 
 /** Tier 2 grid: API items when resolvable, else bundled static categories. */
@@ -115,16 +108,25 @@ export function buildTier2Categories(config: PanelConfig): FeedbackCategory[] {
 
   const out: FeedbackCategory[] = [];
   for (const it of items) {
-    const iconSrc = resolveResourceImageUrl(config.resourceUrl, it.image);
-    if (!iconSrc) {
+    const category = toFeedbackCategory(config, it);
+    if (!category) {
       continue;
     }
-    out.push({
-      id: String(it.id),
-      label: it.name,
-      iconSrc,
-    });
+    out.push(category);
   }
 
   return out.length > 0 ? out : [...TIER2_CATEGORIES];
+}
+
+function toFeedbackCategory(config: PanelConfig, item: FeedbackItemConfig): FeedbackCategory | null {
+  const iconSrc = resolveResourceImageUrl(config.resourceUrl, item.image);
+  if (!iconSrc) {
+    return null;
+  }
+
+  return {
+    id: String(item.id),
+    label: item.name,
+    iconSrc,
+  };
 }

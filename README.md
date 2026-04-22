@@ -28,18 +28,7 @@ Deploy the contents of `**dist/**` to any HTTPS static host (S3, Netlify, nginx,
 
 ## Configuration
 
-Copy `[public/panel.config.json](public/panel.config.json)` into your deployment next to `index.html` (Vite copies `public/` into `dist/`). Edit:
-
-
-| Field                 | Purpose                                                                     |
-| --------------------- | --------------------------------------------------------------------------- |
-| `locationLabel`       | Text at the top-left (per toilet / site).                                   |
-| `toiletId`            | Identifier used when logging submissions (Phase 2 will POST this).          |
-| `greeting`            | Shown after the time-of-day greeting on Tier 1.                             |
-| `brandTitle`          | Short brand text above the greeting (e.g. client acronym).                  |
-| `thankYouResetMs`     | How long Tier 3 stays visible before returning to Tier 1.                   |
-| `simulateLiveUpdates` | When `true`, mock footfall/env metrics drift on a timer (demo).             |
-| `timezone`            | IANA zone used by the **mock** midnight footfall reset (Phase 1 demo only). |
+The app now uses in-code defaults for kiosk/base settings and loads feedback panel items/ratings from backend API after successful gate login (`/api/feedback/getFeedbackPanelItems`).
 
 
 ## Viewport and layout
