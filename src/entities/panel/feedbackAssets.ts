@@ -23,19 +23,20 @@ const LOCAL_RATING_IMAGE_BY_RATING: Record<Rating, string> = {
   poor: "/sad_face.png",
 };
 
-const DEFAULT_AWS_RESOURCE_BASE_URL = "https://simpple-stage-resources.s3.ap-southeast-1.amazonaws.com";
-
 function normalizeResourceBaseUrl(base: string): string {
   return base.trim().replace(/\/+$/, "");
 }
 
-/** S3 (or CDN) origin for relative `image` paths from the feedback panel API. Override with `VITE_AWS_RESOURCE_BASE_URL`. */
+/** S3 (or CDN) origin for relative `image` paths from the feedback panel API. Required env: `VITE_AWS_RESOURCE_BASE_URL`. */
 export function getAwsResourceBaseUrl(): string {
   const fromEnv = import.meta.env.VITE_AWS_RESOURCE_BASE_URL;
   if (typeof fromEnv === "string" && fromEnv.trim() !== "") {
     return normalizeResourceBaseUrl(fromEnv);
   }
-  return normalizeResourceBaseUrl(DEFAULT_AWS_RESOURCE_BASE_URL);
+  const message =
+    "VITE_AWS_RESOURCE_BASE_URL is missing or empty. Add it to .env (see .env.example) and restart the dev server.";
+  console.error(`[toilet-feedback-pwa] ${message}`);
+  throw new Error(message);
 }
 
 /**
