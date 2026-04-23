@@ -1,0 +1,78 @@
+.gate-screen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 4vw, 2rem);
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: radial-gradient(ellipse at 50% 20%, rgba(124, 207, 154, 0.12), transparent 55%), var(--bg-1);
+}
+
+.gate-card {
+  width: min(420px, 100%);
+  padding: clamp(1.25rem, 3vw, 1.75rem);
+  border-radius: 20px;
+  border: 1px solid var(--glass-border);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
+    var(--glass);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px) saturate(1.1);
+}
+
+.gate-title {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.35rem, 3vw, 1.6rem);
+  font-weight: 750;
+}
+
+.gate-subtitle {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+}
+
+.gate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.gate-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.gate-input {
+  user-select: text;
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.gate-error {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  background: rgba(220, 80, 80, 0.2);
+  border: 1px solid rgba(255, 120, 120, 0.35);
+  color: #ffb4b4;
+  font-size: 0.88rem;
+}
+
+.gate-submit {
+  margin-top: 0.5rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(124, 207, 154, 0.45);
+  background: rgba(124, 207, 154, 0.22);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}

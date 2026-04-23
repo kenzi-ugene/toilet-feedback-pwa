@@ -1,5 +1,2 @@
-export type Rating = "excellent" | "good" | "neutral" | "poor";
-
-export function isNegativePathRating(rating: Rating): boolean {
-  return rating === "neutral" || rating === "poor";
-}
+export type { Rating } from "../shared/types/rating";
+export { isNegativePathRating } from "../shared/types/rating";

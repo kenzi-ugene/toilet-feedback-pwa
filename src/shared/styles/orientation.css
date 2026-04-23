@@ -1,0 +1,41 @@
+.orientation-lock {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: linear-gradient(180deg, rgba(13, 31, 18, 0.96), rgba(8, 20, 12, 0.98));
+}
+
+.orientation-lock-card {
+  width: min(560px, 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: var(--shadow);
+  padding: clamp(1rem, 3vw, 1.5rem);
+  text-align: center;
+}
+
+.orientation-lock-title {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.2rem, 2.5vw, 1.75rem);
+  font-weight: 700;
+}
+
+.orientation-lock-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+}
+
+body.portrait-blocked .orientation-lock {
+  display: flex;
+}
+
+body.portrait-blocked #app .shell {
+  visibility: hidden;
+  pointer-events: none;
+}
