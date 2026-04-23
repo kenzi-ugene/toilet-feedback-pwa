@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { clearGateSetup } from "../../gate/storage";
-import { buildTier1RatingRows, buildTier2Categories } from "../../../entities/panel/feedbackAssets";
+import { buildTier1RatingRows, buildTier2Items } from "../../../entities/panel/feedbackAssets";
 import type { PanelConfig } from "../../../entities/panel/config";
 import { submitNegativeRatingFeedback, submitPositiveRatingFeedback } from "../../../shared/api/feedbackApi";
-import { MockPanelDataProvider } from "../services/mockPanelDataProvider";
 import type { PanelState } from "../../../shared/types/panelState";
 import { isNegativePathRating, type Rating } from "../../../shared/types/rating";
 import { buildInitialFeedbackModel, feedbackReducer } from "../model/reducer";
@@ -12,7 +11,7 @@ interface UseFeedbackFlowResult {
   model: ReturnType<typeof buildInitialFeedbackModel>;
   snapshot: PanelState;
   tier1Ratings: ReturnType<typeof buildTier1RatingRows>;
-  tier2Categories: ReturnType<typeof buildTier2Categories>;
+  tier2Items: ReturnType<typeof buildTier2Items>;
   isSubmittingFeedback: boolean;
   onPickRating: (rating: Rating) => Promise<void>;
   onToggleCategory: (categoryId: string) => void;
@@ -21,48 +20,31 @@ interface UseFeedbackFlowResult {
   onLogout: () => void;
 }
 
-export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseFeedbackFlowResult {
-  const dataProvider = useMemo(
-    () =>
-      new MockPanelDataProvider(
-        {
-          locationLabel: locationCode,
-          footfallToday: 10,
-          temperatureC: 26,
-          humidityPct: 64.4,
-        },
-        {
-          simulateLiveUpdates: config.simulateLiveUpdates,
-          timezone: config.timezone,
-        },
-      ),
-    [config.simulateLiveUpdates, config.timezone, locationCode],
-  );
+function emptyPanelSnapshot(locationLabel: string): PanelState {
+  return {
+    locationLabel,
+    footfallToday: null,
+    temperatureC: null,
+    humidityPct: null,
+    updatedAt: "N/A",
+  };
+}
 
+export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseFeedbackFlowResult {
   const [model, dispatch] = useReducer(feedbackReducer, buildInitialFeedbackModel(config));
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
-  const [snapshot, setSnapshot] = useState<PanelState>(() => ({
-    ...dataProvider.getSnapshot(),
-    locationLabel: locationCode,
-  }));
+  const [snapshot, setSnapshot] = useState<PanelState>(() => emptyPanelSnapshot(locationCode));
+
+  const tier1Ratings = useMemo(() => buildTier1RatingRows(config), [config]);
+  const tier2Items = useMemo(() => buildTier2Items(config), [config]);
 
   useEffect(() => {
     dispatch({ type: "reset", config });
   }, [config]);
 
   useEffect(() => {
-    dataProvider.start?.();
-    const unsubscribe = dataProvider.subscribe(() => {
-      setSnapshot({
-        ...dataProvider.getSnapshot(),
-        locationLabel: locationCode,
-      });
-    });
-    return () => {
-      unsubscribe();
-      dataProvider.stop?.();
-    };
-  }, [dataProvider, locationCode]);
+    setSnapshot((previous) => ({ ...previous, locationLabel: locationCode }));
+  }, [locationCode]);
 
   useEffect(() => {
     if (model.screen !== "tier3") {
@@ -153,8 +135,8 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
   return {
     model,
     snapshot,
-    tier1Ratings: buildTier1RatingRows(config),
-    tier2Categories: buildTier2Categories(config),
+    tier1Ratings,
+    tier2Items,
     isSubmittingFeedback,
     onPickRating,
     onToggleCategory,

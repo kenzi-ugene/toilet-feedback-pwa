@@ -13,18 +13,20 @@ interface Tier1ScreenProps {
 }
 
 export function Tier1Screen({ config, snapshot, ratings, onPickRating }: Tier1ScreenProps): ReactElement {
+  const locationLabel = snapshot.locationLabel.trim() === "" ? "N/A" : snapshot.locationLabel;
+
   return (
     <div className="tier1">
-      <div className="location">{snapshot.locationLabel}</div>
+      <div className="location">{locationLabel}</div>
       <div className="tier1-main">
         <aside className="sidebar">
-          <MetricCard title="Today’s Footfall" value={String(snapshot.footfallToday)} iconSrc="/icon-footfall.png" />
-          <MetricCard title="Temperature" value={`${snapshot.temperatureC}°C`} iconSrc="/icon-temperature.png" />
-          <MetricCard title="Humidity" value={`${snapshot.humidityPct}%`} iconSrc="/icon-humidity.png" />
+          <MetricCard title="Today’s Footfall" value={formatMetric(snapshot.footfallToday)} iconSrc="/icon-footfall.png" />
+          <MetricCard title="Temperature" value={formatMetric(snapshot.temperatureC, "°C")} iconSrc="/icon-temperature.png" />
+          <MetricCard title="Humidity" value={formatMetric(snapshot.humidityPct, "%")} iconSrc="/icon-humidity.png" />
         </aside>
         <div className="glass-panel tier1-panel">
           <div className="brand" aria-hidden="true" />
-          <p className="greeting">{`${timeOfDayGreeting()} ${config.greeting}`}</p>
+          <p className="greeting">{`${timeOfDayGreeting()} Please rate our toilet!`}</p>
           <div className="ratings">
             {ratings.map((item) => (
               <button type="button" className="rating-btn" key={item.rating} onClick={() => void onPickRating(item.rating)}>
@@ -60,4 +62,11 @@ function timeOfDayGreeting(): string {
     return "Good afternoon!";
   }
   return "Good evening!";
+}
+
+function formatMetric(value: number | null, suffix = ""): string {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "N/A";
+  }
+  return `${value}${suffix}`;
 }

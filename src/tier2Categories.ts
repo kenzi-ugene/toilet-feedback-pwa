@@ -1,2 +1,2 @@
-export type { FeedbackCategory } from "./entities/feedback/categories";
-export { TIER2_CATEGORIES } from "./entities/feedback/categories";
+export type { FeedbackItem } from "./entities/feedback/categories";
+

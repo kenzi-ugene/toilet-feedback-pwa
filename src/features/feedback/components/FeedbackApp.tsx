@@ -16,7 +16,7 @@ export function FeedbackApp({ config, locationCode }: FeedbackAppProps): ReactEl
     model,
     snapshot,
     tier1Ratings,
-    tier2Categories,
+    tier2Items,
     isSubmittingFeedback,
     onPickRating,
     onToggleCategory,
@@ -36,7 +36,7 @@ export function FeedbackApp({ config, locationCode }: FeedbackAppProps): ReactEl
         )}
         {model.screen === "tier2" && (
           <Tier2Screen
-            categories={tier2Categories}
+            categories={tier2Items}
             selectedCategoryIds={model.selectedTier2CategoryIds}
             isSubmittingFeedback={isSubmittingFeedback}
             onToggleCategory={onToggleCategory}

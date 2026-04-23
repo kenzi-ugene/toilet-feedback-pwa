@@ -112,10 +112,12 @@ img.rating-face { width: clamp(3rem, 8vw, 4.5rem); height: clamp(3rem, 8vw, 4.5r
 
 .tier2 { position: relative; z-index: 1; flex: 1; min-height: 0; padding: clamp(0.5rem, 1.2vw, 1rem); padding-top: clamp(3rem, 5vw, 4rem); display: flex; flex-direction: column; gap: clamp(0.5rem, 1vw, 0.85rem); overflow: hidden; }
 .tier2-title { margin-left: 1rem; text-align: left; font-size: clamp(2.05rem, 1.9vw, 1.45rem); }
+.tier2-empty { margin: 0; grid-column: 1 / -1; grid-row: 1 / -1; display: grid; place-items: center; color: var(--muted); font-size: clamp(1.25rem, 2vw, 1.75rem); }
 .icon-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: clamp(0.45rem, 1vw, 0.85rem); max-width: 1400px; width: 100%; margin: 0 auto; }
 .icon-tile { border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.24); background: rgba(255, 255, 255, 0.1); color: var(--text); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .icon-tile-selected { border-color: rgba(124, 207, 154, 0.92); background: rgba(124, 207, 154, 0.22); }
 .icon-tile-symbol { width: 80%; height: 80%; object-fit: contain; }
+.icon-tile-na { display: grid; place-items: center; font-size: clamp(0.95rem, 1.4vw, 1.1rem); font-weight: 600; color: var(--muted); }
 .icon-tile-label { font-size: clamp(1rem, 0.95vw, 0.78rem); text-align: center; }
 .tier2-actions { display: flex; justify-content: center; padding: 0.2rem 0 0.6rem; }
 

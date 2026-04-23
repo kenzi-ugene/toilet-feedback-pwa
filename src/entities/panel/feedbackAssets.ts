@@ -1,5 +1,4 @@
-import type { FeedbackCategory } from "../feedback/categories";
-import { TIER2_CATEGORIES } from "../feedback/categories";
+import type { FeedbackItem } from "../feedback/categories";
 import type { FeedbackItemConfig, FeedbackRatingConfig, PanelConfig } from "./config";
 import type { Rating } from "../../shared/types/rating";
 
@@ -24,7 +23,26 @@ const LOCAL_RATING_IMAGE_BY_RATING: Record<Rating, string> = {
   poor: "/sad_face.png",
 };
 
-export function resolveResourceImageUrl(resourceUrl: string | undefined, imagePath: string | null | undefined): string | null {
+const DEFAULT_AWS_RESOURCE_BASE_URL = "https://simpple-stage-resources.s3.ap-southeast-1.amazonaws.com";
+
+function normalizeResourceBaseUrl(base: string): string {
+  return base.trim().replace(/\/+$/, "");
+}
+
+/** S3 (or CDN) origin for relative `image` paths from the feedback panel API. Override with `VITE_AWS_RESOURCE_BASE_URL`. */
+export function getAwsResourceBaseUrl(): string {
+  const fromEnv = import.meta.env.VITE_AWS_RESOURCE_BASE_URL;
+  if (typeof fromEnv === "string" && fromEnv.trim() !== "") {
+    return normalizeResourceBaseUrl(fromEnv);
+  }
+  return normalizeResourceBaseUrl(DEFAULT_AWS_RESOURCE_BASE_URL);
+}
+
+/**
+ * Resolves a panel asset path from getFeedbackPanelItems: absolute URLs are returned as-is;
+ * relative paths are joined to {@link getAwsResourceBaseUrl}.
+ */
+export function resolveResourceImageUrl(imagePath: string | null | undefined): string | null {
   if (imagePath == null) {
     return null;
   }
@@ -35,10 +53,8 @@ export function resolveResourceImageUrl(resourceUrl: string | undefined, imagePa
   if (/^https?:\/\//i.test(trimmed)) {
     return trimmed;
   }
-  const base = resourceUrl?.trim().replace(/\/$/, "") ?? "";
-  if (base.length === 0) {
-    return null;
-  }
+
+  const base = getAwsResourceBaseUrl();
   const suffix = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
   return `${base}${suffix}`;
 }
@@ -78,7 +94,7 @@ export function buildTier1RatingRows(config: PanelConfig): Tier1RatingRow[] {
     if (!rating) {
       continue;
     }
-    const imageUrl = resolveResourceImageUrl(config.resourceUrl, row.image) ?? LOCAL_RATING_IMAGE_BY_RATING[rating];
+    const imageUrl = resolveResourceImageUrl(row.image) ?? LOCAL_RATING_IMAGE_BY_RATING[rating];
     rows.push({
       rating,
       label: row.caption,
@@ -90,34 +106,28 @@ export function buildTier1RatingRows(config: PanelConfig): Tier1RatingRow[] {
   return rows;
 }
 
-export function buildTier2Categories(config: PanelConfig): FeedbackCategory[] {
+export function buildTier2Items(config: PanelConfig): FeedbackItem[] {
   const items = config.feedbackItems;
   if (!items?.length) {
-    return [...TIER2_CATEGORIES];
+    return [];
   }
 
-  const categories: FeedbackCategory[] = [];
+  const feedbackItems: FeedbackItem[] = [];
   for (const item of items) {
-    const category = toFeedbackCategory(config, item);
-    if (category) {
-      categories.push(category);
+    const feedbackItem = toFeedbackItem(item);
+    if (feedbackItem) {
+      feedbackItems.push(feedbackItem);
     }
   }
 
-  return categories.length > 0 ? categories : [...TIER2_CATEGORIES];
+  return feedbackItems;
 }
 
-function toFeedbackCategory(config: PanelConfig, item: FeedbackItemConfig): FeedbackCategory | null {
-  const iconSrc = resolveResourceImageUrl(config.resourceUrl, item.image) ?? resolveFallbackTier2IconByName(item.name);
+function toFeedbackItem(item: FeedbackItemConfig): FeedbackItem | null {
+  const iconSrc = resolveResourceImageUrl(item.image);
   return {
     id: String(item.id),
     label: item.name,
-    iconSrc,
+    iconSrc: iconSrc ?? null,
   };
-}
-
-function resolveFallbackTier2IconByName(name: string): string {
-  const normalized = name.trim().toLowerCase();
-  const matched = TIER2_CATEGORIES.find((category) => category.label.trim().toLowerCase() === normalized);
-  return matched?.iconSrc ?? "/icon-dirty-wc.png";
 }

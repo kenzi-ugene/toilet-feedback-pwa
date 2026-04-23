@@ -7,16 +7,15 @@ export interface FeedbackRatingConfig {
   active?: number;
 }
 
+/** Shape aligned with getFeedbackPanelItems panel `items` (id, name, image path or absolute URL). */
 export interface FeedbackItemConfig {
   id: number;
   name: string;
-  image: string;
+  image?: string | null;
 }
 
 export interface PanelConfig {
-  greeting: string;
   thankYouResetMs: number;
-  simulateLiveUpdates: boolean;
   timezone: string;
   resourceUrl?: string;
   feedbackRatings?: FeedbackRatingConfig[];
@@ -27,13 +26,25 @@ export interface PanelConfig {
   feedbackPanelItemsApiUrl?: string;
 }
 
+const DEFAULT_FEEDBACK_API_BASE_URL = "http://ifsc.test";
+const FEEDBACK_PANEL_ITEMS_PATH = "/api/feedback/getFeedbackPanelItems";
+
+function resolveFeedbackPanelItemsApiUrlFromBaseUrl(baseUrl: string): string {
+  const normalizedBase = baseUrl.trim().replace(/\/+$/, "");
+  return `${normalizedBase}${FEEDBACK_PANEL_ITEMS_PATH}`;
+}
+
+function resolveFeedbackPanelItemsApiUrl(): string {
+  const envBaseUrl = import.meta.env.VITE_FEEDBACK_API_BASE_URL?.trim();
+  const baseUrl = envBaseUrl && envBaseUrl.length > 0 ? envBaseUrl : DEFAULT_FEEDBACK_API_BASE_URL;
+  return resolveFeedbackPanelItemsApiUrlFromBaseUrl(baseUrl);
+}
+
 const defaultConfig: PanelConfig = {
-  greeting: "Please rate our toilet!",
   thankYouResetMs: 8000,
-  simulateLiveUpdates: true,
   timezone: "Asia/Singapore",
   enableRatingsFeedback: null,
-  feedbackPanelItemsApiUrl: "http://ifsc.test/api/feedback/getFeedbackPanelItems",
+  feedbackPanelItemsApiUrl: resolveFeedbackPanelItemsApiUrl(),
 };
 
 export function ratingToSubmitLabel(rating: Rating): string {

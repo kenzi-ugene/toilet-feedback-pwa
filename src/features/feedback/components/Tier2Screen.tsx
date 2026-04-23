@@ -1,8 +1,8 @@
 import type { ReactElement } from "react";
-import type { FeedbackCategory } from "../../../entities/feedback/categories";
+import type { FeedbackItem } from "../../../entities/feedback/categories";
 
 interface Tier2ScreenProps {
-  categories: FeedbackCategory[];
+  categories: FeedbackItem[];
   selectedCategoryIds: string[];
   isSubmittingFeedback: boolean;
   onToggleCategory: (categoryId: string) => void;
@@ -16,22 +16,40 @@ export function Tier2Screen({
   onToggleCategory,
   onSubmitFeedback,
 }: Tier2ScreenProps): ReactElement {
+  console.log("categories", categories);
   return (
     <div className="tier2">
       <h1 className="tier2-title">Let us know the areas for improvement</h1>
       <div className="icon-grid">
-        {categories.map((category) => (
-          <button
-            type="button"
-            className={selectedCategoryIds.includes(category.id) ? "icon-tile icon-tile-selected" : "icon-tile"}
-            key={category.id}
-            data-category={category.id}
-            onClick={() => onToggleCategory(category.id)}
-          >
-            <img className="icon-tile-symbol" src={category.iconSrc} alt="" aria-hidden="true" />
-            <span className="icon-tile-label">{category.label}</span>
-          </button>
-        ))}
+        {categories.length === 0 ? (
+          <p className="tier2-empty" role="status">
+            N/A
+          </p>
+        ) : (
+          categories.map((item) => (
+            <button
+              type="button"
+              className={selectedCategoryIds.includes(item.id) ? "icon-tile icon-tile-selected" : "icon-tile"}
+              key={item.id}
+              data-category={item.id}
+              onClick={() => onToggleCategory(item.id)}
+            >
+              {item.iconSrc ? (
+                <img
+                  className="icon-tile-symbol"
+                  src={item.iconSrc}
+                  alt=""
+                  aria-hidden="true"
+                />
+              ) : (
+                <span className="icon-tile-symbol icon-tile-na" aria-hidden="true">
+                  N/A
+                </span>
+              )}
+              <span className="icon-tile-label">{item.label}</span>
+            </button>
+          ))
+        )}
       </div>
       <div className="tier2-actions">
         <button
