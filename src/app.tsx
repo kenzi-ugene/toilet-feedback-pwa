@@ -1,19 +1,19 @@
 import type { FormEvent } from "react";
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { submitPositiveRatingFeedback } from "./backend";
+import { submitNegativeRatingFeedback, submitPositiveRatingFeedback } from "./backend";
 import type { PanelConfig } from "./config";
 import { MockPanelDataProvider } from "./data/mockPanelDataProvider";
 import { buildTier1RatingRows, buildTier2Categories } from "./feedbackAssets";
 import { nextScreenAfterRating, type Screen } from "./flow";
 import { clearGateSetup } from "./gate";
 import type { PanelState } from "./types/panelState";
-import type { Rating } from "./types/rating";
+import { isNegativePathRating, type Rating } from "./types/rating";
 
 interface AppModel {
   screen: Screen;
   rating: Rating | null;
-  categoryId: string | null;
+  categoryIds: string[];
 }
 
 interface FeedbackAppProps {
@@ -35,7 +35,7 @@ function buildInitialModel(config: PanelConfig): AppModel {
   return {
     screen: initialScreen(config),
     rating: null,
-    categoryId: null,
+    categoryIds: [],
   };
 }
 
@@ -59,6 +59,7 @@ export function FeedbackApp(props: FeedbackAppProps): ReactElement {
   );
   const [model, setModel] = useState<AppModel>(() => buildInitialModel(config));
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [selectedTier2CategoryIds, setSelectedTier2CategoryIds] = useState<string[]>([]);
   const [snapshot, setSnapshot] = useState<PanelState>(() => ({
     ...dataProvider.getSnapshot(),
     locationLabel: locationCode,
@@ -123,10 +124,11 @@ export function FeedbackApp(props: FeedbackAppProps): ReactElement {
 
       setModel((currentModel) => {
         const nextScreen = nextScreenAfterRating(rating);
+        const nextCategoryIds = nextScreen === "tier2" ? [] : currentModel.categoryIds;
         const nextModel: AppModel = {
           screen: nextScreen,
           rating,
-          categoryId: currentModel.categoryId,
+          categoryIds: nextCategoryIds,
         };
         if (nextScreen === "tier3") {
           logFeedbackEvent(nextModel);
@@ -137,17 +139,53 @@ export function FeedbackApp(props: FeedbackAppProps): ReactElement {
     [config, isSubmittingFeedback],
   );
 
-  const onPickCategory = useCallback((categoryId: string): void => {
-    setModel((currentModel) => {
-      const nextModel: AppModel = {
-        screen: "tier3",
-        rating: currentModel.rating,
-        categoryId,
-      };
-      logFeedbackEvent(nextModel);
-      return nextModel;
+  const onToggleCategory = useCallback((categoryId: string): void => {
+    setSelectedTier2CategoryIds((currentIds) => {
+      if (currentIds.includes(categoryId)) {
+        return currentIds.filter((id) => id !== categoryId);
+      }
+      return [...currentIds, categoryId];
     });
   }, []);
+
+  const onSubmitTier2Feedback = useCallback(async (): Promise<void> => {
+    if (selectedTier2CategoryIds.length === 0 || isSubmittingFeedback) {
+      return;
+    }
+
+    // Tier 2 can be the entry screen, so fallback to "poor" when no Tier 1 rating exists.
+    const submitRating: Rating =
+      model.rating && isNegativePathRating(model.rating) ? model.rating : "poor";
+
+    setIsSubmittingFeedback(true);
+    try {
+      await submitNegativeRatingFeedback(config, submitRating, selectedTier2CategoryIds);
+      const nextModel: AppModel = {
+        screen: "tier3",
+        rating: submitRating,
+        categoryIds: [...selectedTier2CategoryIds],
+      };
+      logFeedbackEvent(nextModel);
+      setModel(nextModel);
+      setSelectedTier2CategoryIds([]);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === "ITEM_ID_REQUIRED") {
+        window.alert("Selected feedback items do not contain valid API item IDs.");
+        return;
+      }
+      if (error instanceof Error && error.message === "CANT_GET_IP") {
+        window.alert("Can't get IP.");
+        return;
+      }
+      if (error instanceof Error && error.message === "FEEDBACK_COOLDOWN") {
+        window.alert("You need to wait 5 mins before submitting another feedback.");
+        return;
+      }
+      window.alert("Feedback submission failed. Please try again.");
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  }, [config, isSubmittingFeedback, model.rating, selectedTier2CategoryIds]);
 
   const onLogout = useCallback((): void => {
     clearGateSetup();
@@ -170,7 +208,15 @@ export function FeedbackApp(props: FeedbackAppProps): ReactElement {
             onPickRating={onPickRating}
           />
         )}
-        {model.screen === "tier2" && <Tier2Screen categories={tier2Categories} onPickCategory={onPickCategory} />}
+        {model.screen === "tier2" && (
+          <Tier2Screen
+            categories={tier2Categories}
+            selectedCategoryIds={selectedTier2CategoryIds}
+            isSubmittingFeedback={isSubmittingFeedback}
+            onToggleCategory={onToggleCategory}
+            onSubmitFeedback={onSubmitTier2Feedback}
+          />
+        )}
         {model.screen === "tier3" && (
           <Tier3Screen resetMs={config.thankYouResetMs} onDismiss={resetToInitial} />
         )}
@@ -294,9 +340,12 @@ function Tier1Screen(props: {
 
 function Tier2Screen(props: {
   categories: ReturnType<typeof buildTier2Categories>;
-  onPickCategory: (categoryId: string) => void;
+  selectedCategoryIds: string[];
+  isSubmittingFeedback: boolean;
+  onToggleCategory: (categoryId: string) => void;
+  onSubmitFeedback: () => Promise<void>;
 }): ReactElement {
-  const { categories, onPickCategory } = props;
+  const { categories, selectedCategoryIds, isSubmittingFeedback, onToggleCategory, onSubmitFeedback } = props;
   return (
     <div className="tier2">
       <h1 className="tier2-title">Let us know the areas for improvement</h1>
@@ -304,15 +353,27 @@ function Tier2Screen(props: {
         {categories.map((category) => (
           <button
             type="button"
-            className="icon-tile"
+            className={selectedCategoryIds.includes(category.id) ? "icon-tile icon-tile-selected" : "icon-tile"}
             key={category.id}
             data-category={category.id}
-            onClick={() => onPickCategory(category.id)}
+            onClick={() => onToggleCategory(category.id)}
           >
             <img className="icon-tile-symbol" src={category.iconSrc} alt="" aria-hidden="true" />
             <span className="icon-tile-label">{category.label}</span>
           </button>
         ))}
+      </div>
+      <div className="tier2-actions">
+        <button
+          type="button"
+          className="text-btn"
+          disabled={selectedCategoryIds.length === 0 || isSubmittingFeedback}
+          onClick={() => void onSubmitFeedback()}
+        >
+          {isSubmittingFeedback
+            ? "Submitting..."
+            : `Submit feedback${selectedCategoryIds.length > 0 ? ` (${selectedCategoryIds.length})` : ""}`}
+        </button>
       </div>
     </div>
   );
@@ -351,7 +412,7 @@ function MetricCard(props: { title: string; value: string; iconSrc: string }): R
 function logFeedbackEvent(model: AppModel): void {
   const payload = {
     rating: model.rating,
-    categoryId: model.categoryId,
+    categoryIds: model.categoryIds,
     at: new Date().toISOString(),
   };
   console.info("[toilet-feedback] submission (Phase 1 demo)", payload);

@@ -181,6 +181,100 @@ export async function submitPositiveRatingFeedback(config: PanelConfig, rating: 
   }
 }
 
+/**
+ * Submits neutral/poor feedback from Tier 2 with one or more `item_id[]` values.
+ */
+export async function submitNegativeRatingFeedback(
+  config: PanelConfig,
+  rating: Rating,
+  selectedItemIds: string[],
+): Promise<void> {
+  if (!(rating === "neutral" || rating === "poor")) {
+    return;
+  }
+  if (!config.feedbackPanelId || selectedItemIds.length === 0) {
+    return;
+  }
+
+  const endpoints = buildFeedbackEndpoints(config.feedbackPanelItemsApiUrl);
+  const submitUrl = buildTier2SubmitUrl(config.feedbackPanelItemsApiUrl, endpoints.submitUrl);
+  const ip = await getCurrentIpv4Address();
+  if (!ip) {
+    throw new Error("CANT_GET_IP");
+  }
+
+  try {
+    const isAvailable = await callFeedbackAvailability(endpoints.availabilityUrl, config.feedbackPanelId, ip);
+    if (!isAvailable) {
+      throw new Error("FEEDBACK_COOLDOWN");
+    }
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "FEEDBACK_COOLDOWN") {
+      throw error;
+    }
+    // Continue submit flow for network/temporary availability-check errors.
+  }
+
+  const ratingLabel = toNegativeSubmitLabel(rating);
+  const normalizedItemIds = normalizeNumericItemIds(selectedItemIds);
+  if (normalizedItemIds.length === 0) {
+    throw new Error("ITEM_ID_REQUIRED");
+  }
+  const payload = new URLSearchParams({
+    rating: ratingLabel,
+    description: ratingLabel,
+    feedback_panel_id: String(config.feedbackPanelId),
+    ip,
+    patron_name: "",
+    patron_mobile_number: "",
+    comments: "",
+    lat: "",
+    lng: "",
+  });
+
+  for (const itemId of normalizedItemIds) {
+    payload.append("item_id[]", itemId);
+  }
+
+  try {
+    const submitResponse = await fetch(submitUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: payload.toString(),
+    });
+    if (!submitResponse.ok) {
+      throw new Error("FEEDBACK_COOLDOWN");
+    }
+    const submitData = (await submitResponse.json()) as unknown;
+    if (submitData === false) {
+      throw new Error("FEEDBACK_COOLDOWN");
+    }
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "FEEDBACK_COOLDOWN") {
+      throw error;
+    }
+    throw new Error("FEEDBACK_COOLDOWN");
+  }
+}
+
+function normalizeNumericItemIds(selectedItemIds: string[]): string[] {
+  const numericIds = new Set<string>();
+  for (const itemId of selectedItemIds) {
+    const trimmed = itemId.trim();
+    if (/^\d+$/.test(trimmed)) {
+      numericIds.add(trimmed);
+    }
+  }
+  return [...numericIds];
+}
+
+function toNegativeSubmitLabel(rating: Rating): string {
+  if (rating === "poor") {
+    return "Bad";
+  }
+  return ratingToSubmitLabel(rating);
+}
+
 function buildFeedbackEndpoints(panelItemsUrl: string | undefined): { availabilityUrl: string; submitUrl: string } {
   const fallbackBase = "http://ifsc.test/api/feedback";
   const raw = panelItemsUrl?.trim() ?? "";
@@ -211,6 +305,23 @@ function buildFeedbackEndpoints(panelItemsUrl: string | undefined): { availabili
       availabilityUrl: `${fallbackBase}/getFeedbackAvailability`,
       submitUrl: `${fallbackBase}/getFeedback`,
     };
+  }
+}
+
+/**
+ * Tier 2 submissions must always hit `/api/feedback/getFeedback`.
+ */
+function buildTier2SubmitUrl(panelItemsUrl: string | undefined, fallbackSubmitUrl: string): string {
+  const raw = panelItemsUrl?.trim() ?? "";
+  if (!raw) {
+    return fallbackSubmitUrl;
+  }
+
+  try {
+    const url = new URL(raw);
+    return `${url.origin}/api/feedback/getFeedback`;
+  } catch {
+    return fallbackSubmitUrl;
   }
 }
 

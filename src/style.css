@@ -458,6 +458,14 @@ img.rating-face {
   outline: none;
 }
 
+.icon-tile-selected {
+  border-color: rgba(124, 207, 154, 0.92);
+  background: rgba(124, 207, 154, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(124, 207, 154, 0.55),
+    0 12px 32px rgba(0, 0, 0, 0.22);
+}
+
 .icon-tile-symbol {
   width: 80%;
   height: 80%;
@@ -472,6 +480,12 @@ img.rating-face {
   color: rgba(255, 255, 255, 0.88);
   font-weight: 600;
   padding: 0 0.15rem;
+}
+
+.tier2-actions {
+  display: flex;
+  justify-content: center;
+  padding: 0.2rem 0 0.6rem;
 }
 
 .tier3 {

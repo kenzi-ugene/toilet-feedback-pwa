@@ -119,14 +119,18 @@ export function buildTier2Categories(config: PanelConfig): FeedbackCategory[] {
 }
 
 function toFeedbackCategory(config: PanelConfig, item: FeedbackItemConfig): FeedbackCategory | null {
-  const iconSrc = resolveResourceImageUrl(config.resourceUrl, item.image);
-  if (!iconSrc) {
-    return null;
-  }
+  const iconSrc =
+    resolveResourceImageUrl(config.resourceUrl, item.image) ?? resolveFallbackTier2IconByName(item.name);
 
   return {
     id: String(item.id),
     label: item.name,
     iconSrc,
   };
+}
+
+function resolveFallbackTier2IconByName(name: string): string {
+  const normalized = name.trim().toLowerCase();
+  const matched = TIER2_CATEGORIES.find((category) => category.label.trim().toLowerCase() === normalized);
+  return matched?.iconSrc ?? "/icon-dirty-wc.png";
 }
