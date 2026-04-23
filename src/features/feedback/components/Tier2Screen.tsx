@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import type { FeedbackItem } from "../../../entities/feedback/categories";
+import type { FeedbackItem } from "../../../entities/feedback/items";
 
 interface Tier2ScreenProps {
   categories: FeedbackItem[];
@@ -16,7 +16,6 @@ export function Tier2Screen({
   onToggleCategory,
   onSubmitFeedback,
 }: Tier2ScreenProps): ReactElement {
-  console.log("categories", categories);
   return (
     <div className="tier2">
       <h1 className="tier2-title">Let us know the areas for improvement</h1>

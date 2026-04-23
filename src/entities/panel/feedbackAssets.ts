@@ -1,4 +1,4 @@
-import type { FeedbackItem } from "../feedback/categories";
+import type { FeedbackItem } from "../feedback/items";
 import type { FeedbackItemConfig, FeedbackRatingConfig, PanelConfig } from "./config";
 import type { Rating } from "../../shared/types/rating";
 

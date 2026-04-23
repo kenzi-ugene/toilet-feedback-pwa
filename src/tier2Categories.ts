@@ -1,2 +1,2 @@
-export type { FeedbackItem } from "./entities/feedback/categories";
+export type { FeedbackItem } from "./entities/feedback/items";
 
