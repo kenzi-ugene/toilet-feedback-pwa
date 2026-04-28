@@ -33,7 +33,6 @@ export function mapPanelResponseToConfigPatch(data: FeedbackPanelApiResponse | n
   if (typeof data.qr_code === "string" && data.qr_code.trim() !== "") {
     patch.qrCodeBase64 = data.qr_code.trim();
   }
-
   return patch;
 }
 

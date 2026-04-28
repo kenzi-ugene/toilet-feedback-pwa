@@ -15,6 +15,7 @@ export function FeedbackApp({ config, locationCode }: FeedbackAppProps): ReactEl
   const {
     model,
     snapshot,
+    realtimeStatus,
     tier1Ratings,
     tier2Items,
     isSubmittingFeedback,
@@ -32,7 +33,13 @@ export function FeedbackApp({ config, locationCode }: FeedbackAppProps): ReactEl
       <div className="shell">
         <div className={isTier2 ? "bg bg-tier2" : "bg"} />
         {model.screen === "tier1" && (
-          <Tier1Screen config={config} snapshot={snapshot} ratings={tier1Ratings} onPickRating={onPickRating} />
+          <Tier1Screen
+            config={config}
+            snapshot={snapshot}
+            realtimeStatus={realtimeStatus}
+            ratings={tier1Ratings}
+            onPickRating={onPickRating}
+          />
         )}
         {model.screen === "tier2" && (
           <Tier2Screen

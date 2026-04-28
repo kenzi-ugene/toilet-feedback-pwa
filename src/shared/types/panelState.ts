@@ -1,6 +1,6 @@
 export interface PanelState {
   locationLabel: string;
-  footfallToday: number | null;
+  footfall: number | null;
   temperatureC: number | null;
   humidityPct: number | null;
   updatedAt: string;

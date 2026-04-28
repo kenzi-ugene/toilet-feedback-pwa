@@ -1,14 +1,13 @@
 # Toilet feedback panel (PWA)
 
-Phase 1 delivers a **kiosk-style Progressive Web App** with three tiers:
+This project delivers a **kiosk-style Progressive Web App** with three tiers:
 
 1. **Tier 1** — Location (top-left), today’s footfall, temperature, humidity, and four rating actions.
 2. **Tier 2** — Twelve improvement categories on a **single viewport** (6×2 grid on typical tablet landscape; reflows on narrow widths).
 3. **Tier 3** — Thank you, then automatic return to Tier 1 (timer configurable).
 
-Metrics use a **mock data provider** with optional simulated updates. The shape matches the planned Phase 2 API fields (`footfallToday`, `temperatureC`, `humidityPct`, `locationLabel`, `updatedAt`) so swapping in a real provider later is straightforward.
-
-Feedback submissions are **logged to the browser console** in Phase 1 (no backend).
+Metrics can now be consumed from backend realtime APIs (SSE + snapshot fallback) using the panel-authenticated runtime
+configuration.
 
 ## Requirements
 
@@ -29,6 +28,17 @@ Deploy the contents of `**dist/**` to any HTTPS static host (S3, Netlify, nginx,
 ## Configuration
 
 The app now uses in-code defaults for kiosk/base settings and loads feedback panel items/ratings from backend API after successful gate login (`/api/feedback/getFeedbackPanelItems`).
+
+Optional realtime env:
+
+- `VITE_PANEL_STREAM_BASE_URL` (for example `http://ifsc.test`)
+
+When set, the app derives:
+
+- `{base}/api/panels/{panelId}/stream` (SSE)
+- `{base}/api/panels/{panelId}/latest-metrics` (fallback snapshot)
+
+If backend already returns `stream_url` and `latest_metrics_url` from gate auth payload, those are preferred.
 
 
 ## Viewport and layout
@@ -55,6 +65,7 @@ These steps vary slightly by device and Android version; verify on your hardware
 3. Upload `**dist/`** to your host (invalidate CDN cache if applicable).
 4. On the tablet, **close and reopen** the installed PWA (or clear site data if you cache aggressively). Service worker updates are handled by the generated worker (`registerSW`); a refresh after deploy usually picks up a new version.
 
-## Phase 2 (not in this repo scope)
+## Backend reference
 
-Backend REST snapshot, SSE/WebSocket push, VS121/GS301 ingestion, server-side midnight footfall, and POST + webhooks will replace the mock provider without changing the tier flow documented in the product plan.
+See [`docs/realtime-sensor-workflow.md`](docs/realtime-sensor-workflow.md) for the backend contract, SSE event schema,
+security rules, and rollout sequence.

@@ -5,6 +5,7 @@ import type { PanelConfig } from "../../../entities/panel/config";
 import { submitNegativeRatingFeedback, submitPositiveRatingFeedback } from "../../../shared/api/feedbackApi";
 import type { PanelState } from "../../../shared/types/panelState";
 import { isNegativePathRating, type Rating } from "../../../shared/types/rating";
+import { createPanelRealtimeProvider, type RealtimeStatus } from "../../../shared/api/panelRealtime";
 import { buildInitialFeedbackModel, feedbackReducer } from "../model/reducer";
 
 interface UseFeedbackFlowResult {
@@ -13,6 +14,7 @@ interface UseFeedbackFlowResult {
   tier1Ratings: ReturnType<typeof buildTier1RatingRows>;
   tier2Items: ReturnType<typeof buildTier2Items>;
   isSubmittingFeedback: boolean;
+  realtimeStatus: RealtimeStatus;
   onPickRating: (rating: Rating) => Promise<void>;
   onToggleCategory: (categoryId: string) => void;
   onSubmitTier2Feedback: () => Promise<void>;
@@ -23,7 +25,7 @@ interface UseFeedbackFlowResult {
 function emptyPanelSnapshot(locationLabel: string): PanelState {
   return {
     locationLabel,
-    footfallToday: null,
+    footfall: null,
     temperatureC: null,
     humidityPct: null,
     updatedAt: "N/A",
@@ -34,6 +36,7 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
   const [model, dispatch] = useReducer(feedbackReducer, buildInitialFeedbackModel(config));
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [snapshot, setSnapshot] = useState<PanelState>(() => emptyPanelSnapshot(locationCode));
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting");
 
   const tier1Ratings = useMemo(() => buildTier1RatingRows(config), [config]);
   const tier2Items = useMemo(() => buildTier2Items(config), [config]);
@@ -45,6 +48,30 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
   useEffect(() => {
     setSnapshot((previous) => ({ ...previous, locationLabel: locationCode }));
   }, [locationCode]);
+
+  useEffect(() => {
+    const provider = createPanelRealtimeProvider({
+      locationLabel: locationCode,
+      panelId: config.feedbackPanelId,
+      urls: {
+        streamUrl: config.panelStreamUrl,
+        latestMetricsUrl: config.panelLatestMetricsUrl,
+      },
+      onStatusChange: setRealtimeStatus,
+    });
+    const unsubscribe = provider.subscribe(() => {
+      setSnapshot(provider.getSnapshot());
+      setRealtimeStatus(provider.getStatus());
+    });
+    provider.start?.();
+    setSnapshot(provider.getSnapshot());
+    setRealtimeStatus(provider.getStatus());
+
+    return () => {
+      unsubscribe();
+      provider.stop?.();
+    };
+  }, [config.feedbackPanelId, config.panelLatestMetricsUrl, config.panelStreamUrl, locationCode]);
 
   useEffect(() => {
     if (model.screen !== "tier3") {
@@ -138,6 +165,7 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
     tier1Ratings,
     tier2Items,
     isSubmittingFeedback,
+    realtimeStatus,
     onPickRating,
     onToggleCategory,
     onSubmitTier2Feedback,

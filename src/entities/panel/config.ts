@@ -18,6 +18,9 @@ export interface PanelConfig {
   thankYouResetMs: number;
   timezone: string;
   resourceUrl?: string;
+  realtimeBaseUrl?: string;
+  panelStreamUrl?: string;
+  panelLatestMetricsUrl?: string;
   feedbackRatings?: FeedbackRatingConfig[];
   enableRatingsFeedback?: boolean | null;
   feedbackItems?: FeedbackItemConfig[];
@@ -34,6 +37,15 @@ export class MissingFeedbackPanelEnvError extends Error {
 }
 
 type FeedbackPanelItemsEnvKey = "VITE_FEEDBACK_API_BASE_URL" | "VITE_FEEDBACK_PANEL_ITEMS_PATH";
+
+function readOptionalStringEnv(name: "VITE_PANEL_STREAM_BASE_URL"): string | undefined {
+  const value = import.meta.env[name];
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
 
 function requireStringEnv(name: FeedbackPanelItemsEnvKey): string {
   const value = import.meta.env[name];
@@ -72,6 +84,7 @@ const defaultPanelConfig: Omit<PanelConfig, "feedbackPanelItemsApiUrl"> = {
   thankYouResetMs: 8000,
   timezone: "Asia/Singapore",
   enableRatingsFeedback: null,
+  realtimeBaseUrl: readOptionalStringEnv("VITE_PANEL_STREAM_BASE_URL"),
 };
 
 export function ratingToSubmitLabel(rating: Rating): string {

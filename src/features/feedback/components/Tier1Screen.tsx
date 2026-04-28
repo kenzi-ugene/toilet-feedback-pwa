@@ -3,16 +3,18 @@ import { MetricCard } from "../../../shared/ui/MetricCard";
 import type { PanelConfig } from "../../../entities/panel/config";
 import type { Tier1RatingRow } from "../../../entities/panel/feedbackAssets";
 import type { PanelState } from "../../../shared/types/panelState";
+import type { RealtimeStatus } from "../../../shared/api/panelRealtime";
 import type { Rating } from "../../../shared/types/rating";
 
 interface Tier1ScreenProps {
   config: PanelConfig;
   snapshot: PanelState;
+  realtimeStatus: RealtimeStatus;
   ratings: Tier1RatingRow[];
   onPickRating: (rating: Rating) => Promise<void>;
 }
 
-export function Tier1Screen({ config, snapshot, ratings, onPickRating }: Tier1ScreenProps): ReactElement {
+export function Tier1Screen({ config, snapshot, realtimeStatus, ratings, onPickRating }: Tier1ScreenProps): ReactElement {
   const locationLabel = snapshot.locationLabel.trim() === "" ? "N/A" : snapshot.locationLabel;
 
   return (
@@ -20,12 +22,13 @@ export function Tier1Screen({ config, snapshot, ratings, onPickRating }: Tier1Sc
       <div className="location">{locationLabel}</div>
       <div className="tier1-main">
         <aside className="sidebar">
-          <MetricCard title="Today’s Footfall" value={formatMetric(snapshot.footfallToday)} iconSrc="/icon-footfall.png" />
+          <MetricCard title="Today’s Footfall" value={formatMetric(snapshot.footfall)} iconSrc="/icon-footfall.png" />
           <MetricCard title="Temperature" value={formatMetric(snapshot.temperatureC, "°C")} iconSrc="/icon-temperature.png" />
           <MetricCard title="Humidity" value={formatMetric(snapshot.humidityPct, "%")} iconSrc="/icon-humidity.png" />
         </aside>
         <div className="glass-panel tier1-panel">
           <div className="brand" aria-hidden="true" />
+          <p className="sanitise-note">{buildRealtimeLabel(realtimeStatus, snapshot.updatedAt)}</p>
           <p className="greeting">{`${timeOfDayGreeting()} Please rate our toilet!`}</p>
           <div className="ratings">
             {ratings.map((item) => (
@@ -51,6 +54,36 @@ export function Tier1Screen({ config, snapshot, ratings, onPickRating }: Tier1Sc
       </div>
     </div>
   );
+}
+
+function buildRealtimeLabel(status: RealtimeStatus, updatedAt: string): string {
+  if (status === "live") {
+    return `Live data • Updated ${formatUpdatedAt(updatedAt)}`;
+  }
+  if (status === "fallback") {
+    return `Snapshot mode • Last update ${formatUpdatedAt(updatedAt)}`;
+  }
+  if (status === "stale") {
+    return `Data stale • Last update ${formatUpdatedAt(updatedAt)}`;
+  }
+  if (status === "reconnecting") {
+    return "Reconnecting live data...";
+  }
+  if (status === "error") {
+    return "Live data unavailable";
+  }
+  return "Connecting live data...";
+}
+
+function formatUpdatedAt(updatedAt: string): string {
+  if (!updatedAt || updatedAt === "N/A") {
+    return "N/A";
+  }
+  const asDate = new Date(updatedAt);
+  if (Number.isNaN(asDate.getTime())) {
+    return updatedAt;
+  }
+  return asDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 function timeOfDayGreeting(): string {

@@ -44,3 +44,20 @@ export function buildTier2SubmitUrl(panelItemsUrl: string | undefined, fallbackS
     return fallbackSubmitUrl;
   }
 }
+
+export function buildPanelRealtimeUrls(
+  realtimeBaseUrl: string | undefined,
+  panelId: number | undefined,
+): { streamUrl?: string; latestMetricsUrl?: string } {
+  if (!realtimeBaseUrl || typeof panelId !== "number") {
+    return {};
+  }
+  const base = realtimeBaseUrl.trim().replace(/\/+$/, "");
+  if (base === "") {
+    return {};
+  }
+  return {
+    streamUrl: `${base}/api/feedback/panels/${panelId}/stream`,
+    latestMetricsUrl: `${base}/api/feedback/panels/${panelId}/latest-metrics`,
+  };
+}
