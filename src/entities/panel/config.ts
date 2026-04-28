@@ -36,7 +36,7 @@ export class MissingFeedbackPanelEnvError extends Error {
   }
 }
 
-type FeedbackPanelItemsEnvKey = "VITE_FEEDBACK_API_BASE_URL" | "VITE_FEEDBACK_PANEL_ITEMS_PATH";
+type FeedbackPanelItemsEnvKey = "VITE_PANEL_STREAM_BASE_URL" | "VITE_FEEDBACK_PANEL_ITEMS_PATH";
 
 function readOptionalStringEnv(name: "VITE_PANEL_STREAM_BASE_URL"): string | undefined {
   const value = import.meta.env[name];
@@ -59,7 +59,7 @@ function requireStringEnv(name: FeedbackPanelItemsEnvKey): string {
 }
 
 function buildFeedbackPanelItemsApiUrlFromEnv(): string {
-  const base = requireStringEnv("VITE_FEEDBACK_API_BASE_URL");
+  const base = requireStringEnv("VITE_PANEL_STREAM_BASE_URL");
   const path = requireStringEnv("VITE_FEEDBACK_PANEL_ITEMS_PATH");
   const normalizedBase = base.replace(/\/+$/, "");
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
@@ -69,7 +69,7 @@ function buildFeedbackPanelItemsApiUrlFromEnv(): string {
 let cachedFeedbackPanelItemsApiUrl: string | undefined;
 
 /**
- * Full URL for the getFeedbackPanelItems endpoint. Required env: {@link VITE_FEEDBACK_API_BASE_URL}, {@link VITE_FEEDBACK_PANEL_ITEMS_PATH}.
+ * Full URL for the getFeedbackPanelItems endpoint. Required env: {@link VITE_PANEL_STREAM_BASE_URL}, {@link VITE_FEEDBACK_PANEL_ITEMS_PATH}.
  * Throws {@link MissingFeedbackPanelEnvError} with a clear message if either is unset.
  */
 export function getFeedbackPanelItemsApiUrl(): string {
