@@ -23,6 +23,7 @@ export function FeedbackApp({ config, locationCode }: FeedbackAppProps): ReactEl
     onToggleCategory,
     onSubmitTier2Feedback,
     onDismissTier3,
+    onBackToTier1,
     onLogout,
   } = useFeedbackFlow(config, locationCode);
 
@@ -48,6 +49,7 @@ export function FeedbackApp({ config, locationCode }: FeedbackAppProps): ReactEl
             isSubmittingFeedback={isSubmittingFeedback}
             onToggleCategory={onToggleCategory}
             onSubmitFeedback={onSubmitTier2Feedback}
+            onBackToTier1={config.enableRatingsFeedback === true ? onBackToTier1 : undefined}
           />
         )}
         {model.screen === "tier3" && <Tier3Screen resetMs={config.thankYouResetMs} onDismiss={onDismissTier3} />}

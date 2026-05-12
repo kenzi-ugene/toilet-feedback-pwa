@@ -7,6 +7,7 @@ interface Tier2ScreenProps {
   isSubmittingFeedback: boolean;
   onToggleCategory: (categoryId: string) => void;
   onSubmitFeedback: () => Promise<void>;
+  onBackToTier1?: () => void;
 }
 
 export function Tier2Screen({
@@ -15,6 +16,7 @@ export function Tier2Screen({
   isSubmittingFeedback,
   onToggleCategory,
   onSubmitFeedback,
+  onBackToTier1,
 }: Tier2ScreenProps): ReactElement {
   return (
     <div className="tier2">
@@ -50,10 +52,15 @@ export function Tier2Screen({
           ))
         )}
       </div>
-      <div className="tier2-actions">
+      <div className={onBackToTier1 ? "tier2-actions tier2-actions--with-back" : "tier2-actions"}>
+        {onBackToTier1 && (
+          <button type="button" className="panel-back-btn panel-back-btn--tier2-row" onClick={onBackToTier1} aria-label="Back to ratings">
+            <span className="panel-back-btn-label">Back</span>
+          </button>
+        )}
         <button
           type="button"
-          className="text-btn"
+          className="text-btn tier2-submit-btn"
           disabled={selectedCategoryIds.length === 0 || isSubmittingFeedback}
           onClick={() => void onSubmitFeedback()}
         >

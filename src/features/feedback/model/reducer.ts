@@ -14,6 +14,7 @@ type FeedbackAction =
   | { type: "ratingSelected"; rating: Rating }
   | { type: "tier2CategoryToggled"; categoryId: string }
   | { type: "tier2Submitted"; rating: Rating }
+  | { type: "tier2BackToTier1"; config: PanelConfig }
   | { type: "tier3Dismissed"; config: PanelConfig };
 
 export function buildInitialFeedbackModel(config: PanelConfig): FeedbackModel {
@@ -57,6 +58,18 @@ export function feedbackReducer(state: FeedbackModel, action: FeedbackAction): F
         categoryIds: [...state.selectedTier2CategoryIds],
         selectedTier2CategoryIds: [],
       };
+    case "tier2BackToTier1": {
+      if (action.config.enableRatingsFeedback !== true) {
+        return state;
+      }
+      return {
+        ...state,
+        screen: "tier1",
+        rating: null,
+        categoryIds: [],
+        selectedTier2CategoryIds: [],
+      };
+    }
     default:
       return state;
   }

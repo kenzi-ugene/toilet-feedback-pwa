@@ -19,6 +19,7 @@ interface UseFeedbackFlowResult {
   onToggleCategory: (categoryId: string) => void;
   onSubmitTier2Feedback: () => Promise<void>;
   onDismissTier3: () => void;
+  onBackToTier1: () => void;
   onLogout: () => void;
 }
 
@@ -154,6 +155,10 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
     dispatch({ type: "tier3Dismissed", config });
   }, [config]);
 
+  const onBackToTier1 = useCallback((): void => {
+    dispatch({ type: "tier2BackToTier1", config });
+  }, [config]);
+
   const onLogout = useCallback((): void => {
     clearGateSetup();
     window.location.reload();
@@ -170,6 +175,7 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
     onToggleCategory,
     onSubmitTier2Feedback,
     onDismissTier3,
+    onBackToTier1,
     onLogout,
   };
 }
