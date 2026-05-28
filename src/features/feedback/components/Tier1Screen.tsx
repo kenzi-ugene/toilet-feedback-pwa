@@ -14,39 +14,80 @@ interface Tier1ScreenProps {
   onPickRating: (rating: Rating) => Promise<void>;
 }
 
-export function Tier1Screen({ config, snapshot, realtimeStatus, ratings, onPickRating }: Tier1ScreenProps): ReactElement {
-  const locationLabel = snapshot.locationLabel.trim() === "" ? "N/A" : snapshot.locationLabel;
+export function Tier1Screen({
+  config,
+  snapshot,
+  realtimeStatus,
+  ratings,
+  onPickRating,
+}: Tier1ScreenProps): ReactElement {
+  const locationLabel =
+    snapshot.locationLabel.trim() === "" ? "N/A" : snapshot.locationLabel;
 
   return (
     <div className="tier1">
       <div className="location">{locationLabel}</div>
       <div className="tier1-main">
         <aside className="sidebar">
-          <MetricCard title="Today’s Footfall" value={formatMetric(snapshot.footfall)} iconSrc="/icon-footfall.png" />
-          <MetricCard title="Temperature" value={formatMetric(snapshot.temperatureC, "°C")} iconSrc="/icon-temperature.png" />
-          <MetricCard title="Humidity" value={formatMetric(snapshot.humidityPct, "%")} iconSrc="/icon-humidity.png" />
+          <MetricCard
+            title="Today’s Footfall"
+            value={formatMetric(snapshot.footfall)}
+            iconSrc="/icon-footfall.png"
+          />
+          <MetricCard
+            title="Temperature"
+            value={formatMetric(snapshot.temperatureC, "°C")}
+            iconSrc="/icon-temperature.png"
+          />
+          <MetricCard
+            title="Humidity"
+            value={formatMetric(snapshot.humidityPct, "%")}
+            iconSrc="/icon-humidity.png"
+          />
         </aside>
         <div className="glass-panel tier1-panel">
           <div className="brand" aria-hidden="true" />
-          <p className="sanitise-note">{buildRealtimeLabel(realtimeStatus, snapshot.updatedAt)}</p>
-          <p className="greeting">{`${timeOfDayGreeting()} Please rate our toilet!`}</p>
-          <div className="ratings">
-            {ratings.map((item) => (
-              <button type="button" className="rating-btn" key={item.rating} onClick={() => void onPickRating(item.rating)}>
-                {item.imageUrl ? (
-                  <img className="rating-face" src={item.imageUrl} alt="" aria-hidden="true" />
-                ) : (
-                  <span className="rating-face">{item.emojiFallback}</span>
-                )}
-                <span className="rating-label">{item.label}</span>
-              </button>
-            ))}
+          <p className="sanitise-note">
+            {buildRealtimeLabel(realtimeStatus, snapshot.updatedAt)}
+          </p>
+          <div className="tier1-panel-content">
+            <p className="greeting">{`${timeOfDayGreeting()} Please rate our toilet!`}</p>
+            <div className="ratings">
+              {ratings.map((item) => (
+                <button
+                  type="button"
+                  className="rating-btn"
+                  key={item.rating}
+                  onClick={() => void onPickRating(item.rating)}
+                >
+                  {item.imageUrl ? (
+                    <img
+                      className="rating-face"
+                      src={item.imageUrl}
+                      alt=""
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <span className="rating-face">{item.emojiFallback}</span>
+                  )}
+                  <span className="rating-label">{item.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
           <div className="qr-row">
             {config.qrCodeBase64 ? (
-              <img src={`data:image/png;base64,${config.qrCodeBase64}`} alt="QR code" className="qr-placeholder qr-image" />
+              <img
+                src={`data:image/png;base64,${config.qrCodeBase64}`}
+                alt="QR code"
+                className="qr-placeholder qr-image"
+              />
             ) : (
-              <div className="qr-placeholder" role="img" aria-label="QR code placeholder" />
+              <div
+                className="qr-placeholder"
+                role="img"
+                aria-label="QR code placeholder"
+              />
             )}
           </div>
           <p className="sanitise-note">The screen is sanitised regularly.</p>
@@ -83,7 +124,11 @@ function formatUpdatedAt(updatedAt: string): string {
   if (Number.isNaN(asDate.getTime())) {
     return updatedAt;
   }
-  return asDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return asDate.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 function timeOfDayGreeting(): string {

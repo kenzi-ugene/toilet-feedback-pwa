@@ -13,6 +13,10 @@ configuration.
 
 - Node.js 18+ and npm.
 
+## Architecture (entry → gate → tiers)
+
+See **[`docs/application-flow.md`](docs/application-flow.md)** for the step-by-step path from **`index.html`** through **`bootstrap`**, **`RootApp`**, gate auth, **`useFeedbackFlow`**, realtime metrics, and feedback APIs—including which files own each concern.
+
 ## Scripts
 
 ```bash

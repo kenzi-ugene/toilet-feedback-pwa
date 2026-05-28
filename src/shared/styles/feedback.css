@@ -179,8 +179,7 @@
 .ratings {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: clamp(0.65rem, 1.6vw, 1.25rem);
+  justify-content: space-between;
   width: 100%;
 }
 .rating-btn {
@@ -194,13 +193,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 1rem;
 }
 .rating-face {
   font-size: clamp(2rem, 4vw, 2.75rem);
 }
 img.rating-face {
-  width: clamp(3rem, 8vw, 4.5rem);
-  height: clamp(3rem, 8vw, 4.5rem);
+  width: clamp(3rem, 8vw, 7.5rem);
+  height: clamp(3rem, 8vw, 7.5rem);
   object-fit: contain;
 }
 .rating-label {
@@ -269,7 +269,7 @@ img.rating-face {
 }
 .icon-tile {
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
+  border: 4px solid rgba(255, 255, 255, 0.24);
   background: rgba(255, 255, 255, 0.1);
   color: var(--text);
   cursor: pointer;
@@ -279,7 +279,7 @@ img.rating-face {
   justify-content: center;
 }
 .icon-tile-selected {
-  border-color: rgba(124, 207, 154, 0.92);
+  border-color: rgba(0, 255, 94, 0.92);
   background: rgba(124, 207, 154, 0.22);
 }
 .icon-tile-symbol {
@@ -324,6 +324,8 @@ img.rating-face {
 .tier2-actions--with-back > .panel-back-btn--tier2-row {
   flex: 1 1 0;
   min-width: 0;
+  font-size: 2rem;
+  font-weight: 650;
 }
 
 .tier3 {
@@ -355,7 +357,6 @@ img.rating-face {
   font-size: 0.9rem;
 }
 .text-btn {
-  margin-top: 0.35rem;
   padding: 0.65rem 1.1rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.28);
@@ -492,6 +493,14 @@ img.rating-face {
   width: 22px;
   height: 22px;
   opacity: 0.45;
+}
+.tier1-panel-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 80%;
+  gap: 6rem;
 }
 
 @media (max-width: 900px) {
