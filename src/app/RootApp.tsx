@@ -18,45 +18,25 @@ interface RuntimeState {
 
 const RETRY_DELAYS_MS = [2_000, 4_000, 8_000, 15_000, 30_000] as const;
 
-function delay(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) {
-      reject(new DOMException("Aborted", "AbortError"));
-      return;
-    }
-
+function waitForRetry(ms: number, shouldStop: () => boolean): Promise<void> {
+  return new Promise((resolve) => {
     const finish = (): void => {
       window.clearTimeout(timer);
-      signal.removeEventListener("abort", onAbort);
-      window.removeEventListener("online", onOnline);
-    };
-
-    const onAbort = (): void => {
-      finish();
-      reject(new DOMException("Aborted", "AbortError"));
-    };
-
-    const onOnline = (): void => {
-      finish();
+      window.removeEventListener("online", finish);
       resolve();
     };
 
-    const timer = window.setTimeout(() => {
-      finish();
-      resolve();
-    }, ms);
+    const timer = window.setTimeout(finish, ms);
+    window.addEventListener("online", finish, { once: true });
 
-    signal.addEventListener("abort", onAbort, { once: true });
-    window.addEventListener("online", onOnline, { once: true });
+    if (shouldStop()) {
+      finish();
+    }
   });
 }
 
-function isRetryableAuthFailure(failureReason: string | undefined): boolean {
-  return failureReason === "network_error" || failureReason === "http_error";
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
+function isConfirmedInvalidCredentials(failureReason: string | undefined): boolean {
+  return failureReason === "invalid_credentials";
 }
 
 export function RootApp(): ReactElement {
@@ -66,90 +46,100 @@ export function RootApp(): ReactElement {
   const [gateStatus, setGateStatus] = useState<string | null>(null);
   const [isCheckingGate, setIsCheckingGate] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
-  const retryControllerRef = useRef<AbortController | null>(null);
+  const runtimeStateRef = useRef<RuntimeState | null>(null);
 
   useLandscapeGuard();
 
   useEffect(() => {
-    const controller = new AbortController();
-    retryControllerRef.current = controller;
+    runtimeStateRef.current = runtimeState;
+  }, [runtimeState]);
+
+  useEffect(() => {
+    let cancelled = false;
 
     void (async () => {
       try {
         const config = await loadPanelConfig();
-        if (controller.signal.aborted) {
-          return;
-        }
-        setInitialConfig(config);
-
-        const stored = getStoredGateSetup();
-        if (!stored) {
-          return;
-        }
-
-        setIsCheckingGate(true);
-        setGateError(null);
-        setGateStatus("Saved credentials found. Retrying login...");
-
-        let attemptIndex = 0;
-        while (!controller.signal.aborted) {
-          const auth = await authenticateGateWithBackend(
-            config,
-            {
-              locationCode: stored.locationCode,
-              password: stored.password,
-            },
-            controller.signal,
-          );
-
-          if (controller.signal.aborted) {
-            return;
-          }
-
-          if (auth.isValid) {
-            const mergedConfig = await buildRuntimeConfig(auth.panelResponse);
-            if (controller.signal.aborted) {
-              return;
-            }
-            setRuntimeState({
-              config: mergedConfig,
-              locationCode: stored.locationCode,
-            });
-            setGateError(null);
-            setGateStatus(null);
-            setIsCheckingGate(false);
-            return;
-          }
-
-          if (!isRetryableAuthFailure(auth.failureReason)) {
-            setGateStatus(null);
-            setGateError("Credentials not valid.");
-            setIsCheckingGate(false);
-            return;
-          }
-
-          const waitMs = RETRY_DELAYS_MS[Math.min(attemptIndex, RETRY_DELAYS_MS.length - 1)];
-          setGateStatus(`Network unavailable. Retrying login in ${Math.round(waitMs / 1000)}s...`);
-          await delay(waitMs, controller.signal);
-          attemptIndex += 1;
-          setGateStatus("Retrying login...");
+        if (!cancelled) {
+          setInitialConfig(config);
         }
       } catch (error: unknown) {
-        if (isAbortError(error)) {
-          return;
+        if (!cancelled) {
+          setBootError(error instanceof Error ? error.message : String(error));
         }
-        setBootError(error instanceof Error ? error.message : String(error));
-        setIsCheckingGate(false);
       }
     })();
 
     return () => {
-      controller.abort();
-      if (retryControllerRef.current === controller) {
-        retryControllerRef.current = null;
-      }
+      cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!initialConfig || runtimeState) {
+      return;
+    }
+
+    const stored = getStoredGateSetup();
+    if (!stored) {
+      return;
+    }
+
+    let cancelled = false;
+    let attemptIndex = 0;
+
+    const shouldStop = (): boolean => cancelled || runtimeStateRef.current !== null;
+
+    void (async () => {
+      setIsCheckingGate(true);
+      setGateError(null);
+      setGateStatus("Saved credentials found. Signing in...");
+
+      while (!shouldStop()) {
+        const auth = await authenticateGateWithBackend(initialConfig, stored);
+        if (shouldStop()) {
+          return;
+        }
+
+        if (auth.isValid) {
+          const mergedConfig = await buildRuntimeConfig(auth.panelResponse);
+          if (shouldStop()) {
+            return;
+          }
+          setRuntimeState({
+            config: mergedConfig,
+            locationCode: stored.locationCode,
+          });
+          setGateError(null);
+          setGateStatus(null);
+          setIsCheckingGate(false);
+          return;
+        }
+
+        if (isConfirmedInvalidCredentials(auth.failureReason)) {
+          setGateStatus(null);
+          setGateError("Credentials not valid.");
+          setIsCheckingGate(false);
+          return;
+        }
+
+        const waitMs = RETRY_DELAYS_MS[Math.min(attemptIndex, RETRY_DELAYS_MS.length - 1)];
+        setIsCheckingGate(false);
+        setGateStatus(`Network unavailable. Retrying login in ${Math.round(waitMs / 1000)}s...`);
+        await waitForRetry(waitMs, shouldStop);
+        attemptIndex += 1;
+        if (shouldStop()) {
+          return;
+        }
+        setIsCheckingGate(true);
+        setGateStatus("Retrying login...");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialConfig, runtimeState]);
 
   const onGateSubmit = useCallback(
     async (locationCode: string, password: string): Promise<void> => {
@@ -165,12 +155,9 @@ export function RootApp(): ReactElement {
         return;
       }
 
-      retryControllerRef.current?.abort();
-      retryControllerRef.current = null;
-
       setIsCheckingGate(true);
       setGateError(null);
-      setGateStatus(null);
+      setGateStatus("Signing in...");
       try {
         const auth = await authenticateGateWithBackend(initialConfig, {
           locationCode: trimmedLocation,
@@ -178,23 +165,30 @@ export function RootApp(): ReactElement {
         });
 
         if (!auth.isValid) {
-          if (isRetryableAuthFailure(auth.failureReason)) {
-            setGateError("Network unavailable. Check the connection and try again.");
+          if (isConfirmedInvalidCredentials(auth.failureReason)) {
+            setGateError("Credentials not valid.");
+            setGateStatus(null);
             return;
           }
-          setGateError("Credentials not valid.");
+          setGateError("Network unavailable. Check the connection and try again.");
+          setGateStatus(null);
           return;
         }
 
-        saveGateSetup(trimmedLocation, trimmedPassword);
+        try {
+          saveGateSetup(trimmedLocation, trimmedPassword);
+        } catch {
+          // Login should still proceed if localStorage is unavailable.
+        }
         const mergedConfig = await buildRuntimeConfig(auth.panelResponse);
         setRuntimeState({
           config: mergedConfig,
           locationCode: trimmedLocation,
         });
+        setGateError(null);
+        setGateStatus(null);
       } finally {
         setIsCheckingGate(false);
-        setGateStatus(null);
       }
     },
     [initialConfig],

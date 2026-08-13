@@ -6,8 +6,10 @@ interface GateAuthPayload {
   password: string;
 }
 
+const AUTH_TIMEOUT_MS = 10_000;
+
 function asPanelResponse(data: unknown): FeedbackPanelApiResponse | null {
-  if (!data || typeof data !== "object") {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
     return null;
   }
   return data as FeedbackPanelApiResponse;
@@ -21,10 +23,24 @@ function invalidAuthResult(failureReason: GateAuthFailureReason): GateAuthResult
   };
 }
 
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  let timeoutId = 0;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject(new Error("timeout"));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([fetch(url, init), timeout]);
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 export async function authenticateGateWithBackend(
   config: PanelConfig,
   payload: GateAuthPayload,
-  signal?: AbortSignal,
 ): Promise<GateAuthResult> {
   const endpoint = config.feedbackPanelItemsApiUrl?.trim();
   if (!endpoint) {
@@ -32,19 +48,19 @@ export async function authenticateGateWithBackend(
   }
 
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location_code: payload.locationCode,
-        password: payload.password,
-      }),
-      signal,
-    });
+    const response = await fetchWithTimeout(
+      endpoint,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location_code: payload.locationCode,
+          password: payload.password,
+        }),
+      },
+      AUTH_TIMEOUT_MS,
+    );
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        return invalidAuthResult("invalid_credentials");
-      }
       return invalidAuthResult("http_error");
     }
 
@@ -59,10 +75,7 @@ export async function authenticateGateWithBackend(
     }
 
     return { isValid: true, panelResponse: data };
-  } catch (error: unknown) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw error;
-    }
+  } catch {
     return invalidAuthResult("network_error");
   }
 }

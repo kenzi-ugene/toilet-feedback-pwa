@@ -1,5 +1,6 @@
 import type { FormEvent, ReactElement } from "react";
 import { useState } from "react";
+import { getStoredGateSetup } from "../storage";
 
 interface GateScreenProps {
   isSubmitting: boolean;
@@ -9,8 +10,9 @@ interface GateScreenProps {
 }
 
 export function GateScreen({ isSubmitting, error, status, onSubmit }: GateScreenProps): ReactElement {
-  const [locationCode, setLocationCode] = useState("");
-  const [password, setPassword] = useState("");
+  const stored = getStoredGateSetup();
+  const [locationCode, setLocationCode] = useState(stored?.locationCode ?? "");
+  const [password, setPassword] = useState(stored?.password ?? "");
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();

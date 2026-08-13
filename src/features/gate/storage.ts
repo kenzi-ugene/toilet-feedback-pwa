@@ -20,7 +20,6 @@ function readStored(): StoredSetup | null {
     }
     const data = JSON.parse(raw) as StoredSetup;
     if (
-      data.v !== STORAGE_VERSION ||
       typeof data.locationCode !== "string" ||
       data.locationCode.trim() === "" ||
       typeof data.password !== "string" ||
