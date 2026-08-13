@@ -4,10 +4,11 @@ import { useState } from "react";
 interface GateScreenProps {
   isSubmitting: boolean;
   error: string | null;
+  status?: string | null;
   onSubmit: (locationCode: string, password: string) => Promise<void>;
 }
 
-export function GateScreen({ isSubmitting, error, onSubmit }: GateScreenProps): ReactElement {
+export function GateScreen({ isSubmitting, error, status, onSubmit }: GateScreenProps): ReactElement {
   const [locationCode, setLocationCode] = useState("");
   const [password, setPassword] = useState("");
 
@@ -24,6 +25,11 @@ export function GateScreen({ isSubmitting, error, onSubmit }: GateScreenProps): 
         </h1>
         <p className="gate-subtitle">Enter the access password and location code to continue.</p>
         <form className="gate-form" noValidate onSubmit={handleSubmit}>
+          {status && (
+            <p className="gate-status" role="status" aria-live="polite">
+              {status}
+            </p>
+          )}
           {error && (
             <p className="gate-error" role="alert">
               {error}

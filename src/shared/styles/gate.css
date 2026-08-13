@@ -55,6 +55,16 @@
   font-size: 1rem;
 }
 
+.gate-status {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  background: rgba(124, 207, 154, 0.15);
+  border: 1px solid rgba(124, 207, 154, 0.35);
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
 .gate-error {
   margin: 0;
   padding: 0.5rem 0.65rem;

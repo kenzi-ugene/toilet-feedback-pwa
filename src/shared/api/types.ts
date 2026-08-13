@@ -12,7 +12,15 @@ export interface FeedbackPanelApiResponse {
   items?: FeedbackItemConfig[];
 }
 
+export type GateAuthFailureReason =
+  | "no_endpoint"
+  | "network_error"
+  | "http_error"
+  | "invalid_credentials"
+  | "invalid_response";
+
 export interface GateAuthResult {
   isValid: boolean;
   panelResponse: FeedbackPanelApiResponse | null;
+  failureReason?: GateAuthFailureReason;
 }

@@ -1,15 +1,10 @@
 import type { PanelConfig } from "../../entities/panel/config";
-import type { FeedbackPanelApiResponse, GateAuthResult } from "./types";
+import type { FeedbackPanelApiResponse, GateAuthFailureReason, GateAuthResult } from "./types";
 
 interface GateAuthPayload {
   locationCode: string;
   password: string;
 }
-
-const INVALID_AUTH_RESULT: GateAuthResult = {
-  isValid: false,
-  panelResponse: null,
-};
 
 function asPanelResponse(data: unknown): FeedbackPanelApiResponse | null {
   if (!data || typeof data !== "object") {
@@ -18,13 +13,22 @@ function asPanelResponse(data: unknown): FeedbackPanelApiResponse | null {
   return data as FeedbackPanelApiResponse;
 }
 
+function invalidAuthResult(failureReason: GateAuthFailureReason): GateAuthResult {
+  return {
+    isValid: false,
+    panelResponse: null,
+    failureReason,
+  };
+}
+
 export async function authenticateGateWithBackend(
   config: PanelConfig,
   payload: GateAuthPayload,
+  signal?: AbortSignal,
 ): Promise<GateAuthResult> {
   const endpoint = config.feedbackPanelItemsApiUrl?.trim();
   if (!endpoint) {
-    return INVALID_AUTH_RESULT;
+    return invalidAuthResult("no_endpoint");
   }
 
   try {
@@ -35,23 +39,30 @@ export async function authenticateGateWithBackend(
         location_code: payload.locationCode,
         password: payload.password,
       }),
+      signal,
     });
     if (!response.ok) {
-      return INVALID_AUTH_RESULT;
+      if (response.status === 401 || response.status === 403) {
+        return invalidAuthResult("invalid_credentials");
+      }
+      return invalidAuthResult("http_error");
     }
 
     const raw = await response.json();
     if (raw === false) {
-      return INVALID_AUTH_RESULT;
+      return invalidAuthResult("invalid_credentials");
     }
 
     const data = asPanelResponse(raw);
     if (!data) {
-      return INVALID_AUTH_RESULT;
+      return invalidAuthResult("invalid_response");
     }
 
     return { isValid: true, panelResponse: data };
-  } catch {
-    return INVALID_AUTH_RESULT;
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw error;
+    }
+    return invalidAuthResult("network_error");
   }
 }
