@@ -6,7 +6,10 @@ import { submitNegativeRatingFeedback, submitPositiveRatingFeedback } from "../.
 import type { PanelState } from "../../../shared/types/panelState";
 import { isNegativePathRating, type Rating } from "../../../shared/types/rating";
 import { createPanelRealtimeProvider, type RealtimeStatus } from "../../../shared/api/panelRealtime";
+import { sendHeartbeat } from "../../../shared/api/heartbeatApi";
 import { buildInitialFeedbackModel, feedbackReducer } from "../model/reducer";
+
+const HEARTBEAT_INTERVAL_MS = 30_000;
 
 interface UseFeedbackFlowResult {
   model: ReturnType<typeof buildInitialFeedbackModel>;
@@ -73,6 +76,56 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
       provider.stop?.();
     };
   }, [config.feedbackPanelId, config.panelLatestMetricsUrl, config.panelStreamUrl, locationCode]);
+
+  useEffect(() => {
+    const heartbeatUrl = config.panelHeartbeatUrl;
+    const feedbackPanelId = config.feedbackPanelId;
+    if (!heartbeatUrl || typeof feedbackPanelId !== "number") {
+      return;
+    }
+
+    let timer: number | null = null;
+
+    const tick = (): void => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      void sendHeartbeat(heartbeatUrl, feedbackPanelId);
+    };
+
+    const start = (): void => {
+      if (timer !== null) {
+        return;
+      }
+      tick();
+      timer = window.setInterval(tick, HEARTBEAT_INTERVAL_MS);
+    };
+
+    const stop = (): void => {
+      if (timer !== null) {
+        window.clearInterval(timer);
+        timer = null;
+      }
+    };
+
+    const onVisibilityChange = (): void => {
+      if (document.visibilityState === "visible") {
+        start();
+      } else {
+        stop();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    if (document.visibilityState === "visible") {
+      start();
+    }
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      stop();
+    };
+  }, [config.panelHeartbeatUrl, config.feedbackPanelId]);
 
   useEffect(() => {
     if (model.screen !== "tier3") {

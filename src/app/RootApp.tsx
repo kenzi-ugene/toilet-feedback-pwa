@@ -7,7 +7,7 @@ import { OrientationLock, useLandscapeGuard } from "../features/orientation/orie
 import type { PanelConfig } from "../entities/panel/config";
 import { loadPanelConfig } from "../entities/panel/config";
 import type { FeedbackPanelApiResponse } from "../shared/api/types";
-import { buildPanelRealtimeUrls } from "../shared/api/endpoints";
+import { buildHeartbeatUrl, buildPanelRealtimeUrls } from "../shared/api/endpoints";
 import { authenticateGateWithBackend } from "../shared/api/gateApi";
 import { mapPanelResponseToConfigPatch } from "../shared/api/panelMappers";
 
@@ -246,5 +246,6 @@ async function buildRuntimeConfig(panelResponse: FeedbackPanelApiResponse | null
     ...loadedConfig,
     panelStreamUrl: realtimeUrls.streamUrl,
     panelLatestMetricsUrl: realtimeUrls.latestMetricsUrl,
+    panelHeartbeatUrl: buildHeartbeatUrl(loadedConfig.realtimeBaseUrl),
   };
 }

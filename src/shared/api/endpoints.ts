@@ -61,3 +61,14 @@ export function buildPanelRealtimeUrls(
     latestMetricsUrl: `${base}/api/feedback/panels/${panelId}/latest-metrics`,
   };
 }
+
+export function buildHeartbeatUrl(realtimeBaseUrl: string | undefined): string | undefined {
+  if (!realtimeBaseUrl) {
+    return undefined;
+  }
+  const base = realtimeBaseUrl.trim().replace(/\/+$/, "");
+  if (base === "") {
+    return undefined;
+  }
+  return `${base}/api/feedback-panels/heartbeat`;
+}

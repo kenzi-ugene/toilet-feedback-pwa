@@ -21,6 +21,7 @@ export interface PanelConfig {
   realtimeBaseUrl?: string;
   panelStreamUrl?: string;
   panelLatestMetricsUrl?: string;
+  panelHeartbeatUrl?: string;
   feedbackRatings?: FeedbackRatingConfig[];
   enableRatingsFeedback?: boolean | null;
   feedbackItems?: FeedbackItemConfig[];
