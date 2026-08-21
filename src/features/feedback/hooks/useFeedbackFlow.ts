@@ -9,7 +9,7 @@ import { createPanelRealtimeProvider, type RealtimeStatus } from "../../../share
 import { sendHeartbeat } from "../../../shared/api/heartbeatApi";
 import { buildInitialFeedbackModel, feedbackReducer } from "../model/reducer";
 
-const HEARTBEAT_INTERVAL_MS = 30_000;
+const HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
 
 interface UseFeedbackFlowResult {
   model: ReturnType<typeof buildInitialFeedbackModel>;
