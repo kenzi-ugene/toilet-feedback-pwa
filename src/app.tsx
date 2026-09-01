@@ -67,7 +67,6 @@ export function FeedbackApp(props: FeedbackAppProps): ReactElement {
       locationLabel: locationCode,
       panelId: config.feedbackPanelId,
       urls: {
-        streamUrl: config.panelStreamUrl,
         latestMetricsUrl: config.panelLatestMetricsUrl,
       },
       onStatusChange: setRealtimeStatus,
@@ -84,7 +83,7 @@ export function FeedbackApp(props: FeedbackAppProps): ReactElement {
       unsubscribe();
       provider.stop?.();
     };
-  }, [config.feedbackPanelId, config.panelLatestMetricsUrl, config.panelStreamUrl, locationCode]);
+  }, [config.feedbackPanelId, config.panelLatestMetricsUrl, locationCode]);
 
   useEffect(() => {
     if (model.screen !== "tier3") {
@@ -496,17 +495,11 @@ function buildRealtimeLabel(status: RealtimeStatus, updatedAt: string): string {
   if (status === "live") {
     return `Live data • Updated ${formatUpdatedAt(updatedAt)}`;
   }
-  if (status === "fallback") {
-    return `Snapshot mode • Last update ${formatUpdatedAt(updatedAt)}`;
-  }
   if (status === "stale") {
     return `Data stale • Last update ${formatUpdatedAt(updatedAt)}`;
-  }
-  if (status === "reconnecting") {
-    return "Reconnecting live data...";
   }
   if (status === "error") {
     return "Live data unavailable";
   }
-  return "Connecting live data...";
+  return "Loading sensor data...";
 }

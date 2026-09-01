@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { mergePanelSnapshot, parsePanelMetricsEvent } from "./panelRealtime";
+import { describe, expect, it, vi } from "vitest";
+import { createPanelRealtimeProvider, mergePanelSnapshot, parsePanelMetricsEvent } from "./panelRealtime";
 import type { PanelState } from "../types/panelState";
 
 describe("parsePanelMetricsEvent", () => {
@@ -67,5 +67,45 @@ describe("mergePanelSnapshot", () => {
 
     const merged = mergePanelSnapshot(current, { temperatureC: null }, "L2");
     expect(merged.temperatureC).toBeNull();
+  });
+});
+
+describe("createPanelRealtimeProvider", () => {
+  it("polls latest-metrics and becomes live", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        panel_id: 7,
+        footfall: 12,
+        temperature: 24.5,
+        humidity: 61,
+      }),
+    });
+    const provider = createPanelRealtimeProvider({
+      locationLabel: "L1",
+      panelId: 7,
+      urls: { latestMetricsUrl: "https://example.test/latest-metrics" },
+      pollIntervalMs: 60_000,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    provider.start();
+    await vi.waitFor(() => {
+      expect(provider.getStatus()).toBe("live");
+    });
+    expect(provider.getSnapshot().footfall).toBe(12);
+    expect(provider.getSnapshot().temperatureC).toBe(24.5);
+    expect(provider.getSnapshot().humidityPct).toBe(61);
+    provider.stop();
+  });
+
+  it("stays in error and retries when the poll URL is missing", () => {
+    const provider = createPanelRealtimeProvider({
+      locationLabel: "L1",
+      urls: {},
+    });
+    provider.start();
+    expect(provider.getStatus()).toBe("error");
+    provider.stop();
   });
 });

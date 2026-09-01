@@ -1,6 +1,6 @@
 import type { PanelDataProvider, PanelState } from "../types/panelState";
 
-type RealtimeStatus = "connecting" | "live" | "reconnecting" | "stale" | "fallback" | "error";
+type RealtimeStatus = "connecting" | "live" | "stale" | "error";
 
 interface SensorMetricsEventPayload {
   panel_id?: number;
@@ -17,7 +17,6 @@ interface SensorMetricsEventPayload {
 }
 
 interface RealtimeUrls {
-  streamUrl?: string;
   latestMetricsUrl?: string;
 }
 
@@ -25,19 +24,17 @@ interface CreatePanelRealtimeProviderOptions {
   locationLabel: string;
   panelId?: number;
   urls: RealtimeUrls;
+  pollIntervalMs?: number;
   staleAfterMs?: number;
-  fallbackPollIntervalMs?: number;
-  reconnectToFallbackThreshold?: number;
   onStatusChange?: (status: RealtimeStatus) => void;
   now?: () => number;
   fetchImpl?: typeof fetch;
-  /** When true, EventSource uses cookie credentials (same-site or CORS with credentials). */
-  eventSourceWithCredentials?: boolean;
-  eventSourceFactory?: (url: string, withCredentials?: boolean) => EventSource;
 }
 
 interface PanelRealtimeProvider extends PanelDataProvider {
   getStatus(): RealtimeStatus;
+  start(): void;
+  stop(): void;
 }
 
 interface ParsedMetricsEvent {
@@ -45,36 +42,23 @@ interface ParsedMetricsEvent {
   update: Partial<PanelState>;
 }
 
-const DEFAULT_STALE_AFTER_MS = 45_000;
-const DEFAULT_FALLBACK_POLL_INTERVAL_MS = 15_000;
-const DEFAULT_RECONNECT_TO_FALLBACK_THRESHOLD = 3;
+const DEFAULT_POLL_INTERVAL_MS = 60_000;
+const DEFAULT_STALE_AFTER_MS = 150_000;
 
 export function createPanelRealtimeProvider(options: CreatePanelRealtimeProviderOptions): PanelRealtimeProvider {
+  const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const staleAfterMs = options.staleAfterMs ?? DEFAULT_STALE_AFTER_MS;
-  const fallbackPollIntervalMs = options.fallbackPollIntervalMs ?? DEFAULT_FALLBACK_POLL_INTERVAL_MS;
-  const reconnectThreshold = options.reconnectToFallbackThreshold ?? DEFAULT_RECONNECT_TO_FALLBACK_THRESHOLD;
   const fetchImpl = options.fetchImpl ?? fetch;
-  const streamWithCredentials =
-    options.eventSourceWithCredentials === true ||
-    (typeof import.meta !== "undefined" &&
-      import.meta.env?.VITE_PANEL_STREAM_WITH_CREDENTIALS === "true");
-  const eventSourceFactory =
-    options.eventSourceFactory ??
-    ((url: string, withCredentials?: boolean) => {
-      if (withCredentials) {
-        return new EventSource(url, { withCredentials: true });
-      }
-      return new EventSource(url);
-    });
   const now = options.now ?? (() => Date.now());
 
   let snapshot: PanelState = emptyPanelSnapshot(options.locationLabel);
   let status: RealtimeStatus = "connecting";
-  let reconnectErrors = 0;
-  let lastEventAtMs: number | null = null;
-  let eventSource: EventSource | null = null;
-  let staleCheckTimer: number | null = null;
-  let fallbackPollTimer: number | null = null;
+  let lastSuccessAtMs: number | null = null;
+  let pollTimer: ReturnType<typeof setInterval> | null = null;
+  let staleCheckTimer: ReturnType<typeof setInterval> | null = null;
+  let inFlight = false;
+  let stopped = true;
+  let abortController: AbortController | null = null;
 
   const listeners = new Set<() => void>();
 
@@ -93,18 +77,27 @@ export function createPanelRealtimeProvider(options: CreatePanelRealtimeProvider
 
   const applySnapshotUpdate = (update: Partial<PanelState>): void => {
     snapshot = mergePanelSnapshot(snapshot, update, options.locationLabel);
-    lastEventAtMs = now();
-    reconnectErrors = 0;
+    lastSuccessAtMs = now();
     setStatus("live");
     emit();
   };
 
   const readLatestMetrics = async (): Promise<void> => {
-    if (!options.urls.latestMetricsUrl) {
+    if (stopped || inFlight || !options.urls.latestMetricsUrl) {
       return;
     }
+    inFlight = true;
+    abortController = new AbortController();
     try {
-      const response = await fetchImpl(options.urls.latestMetricsUrl, { method: "GET", credentials: "include" });
+      const response = await fetchImpl(options.urls.latestMetricsUrl, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+        signal: abortController.signal,
+      });
+      if (stopped) {
+        return;
+      }
       if (!response.ok) {
         setStatus("error");
         return;
@@ -112,80 +105,29 @@ export function createPanelRealtimeProvider(options: CreatePanelRealtimeProvider
       const payload = (await response.json()) as unknown;
       const parsed = parsePanelMetricsPayload(payload);
       if (!parsed) {
+        setStatus("error");
         return;
       }
       if (typeof options.panelId === "number" && typeof parsed.panelId === "number" && parsed.panelId !== options.panelId) {
         return;
       }
       applySnapshotUpdate(parsed.update);
-    } catch {
+    } catch (error) {
+      if (stopped || (error instanceof Error && error.name === "AbortError")) {
+        return;
+      }
       setStatus("error");
+    } finally {
+      inFlight = false;
+      abortController = null;
     }
   };
 
-  const ensureFallbackPolling = (): void => {
-    if (fallbackPollTimer !== null || !options.urls.latestMetricsUrl) {
+  const onVisibilityChange = (): void => {
+    if (typeof document === "undefined" || document.visibilityState !== "visible") {
       return;
     }
-    setStatus("fallback");
     void readLatestMetrics();
-    fallbackPollTimer = window.setInterval(() => {
-      void readLatestMetrics();
-    }, fallbackPollIntervalMs);
-  };
-
-  const stopFallbackPolling = (): void => {
-    if (fallbackPollTimer !== null) {
-      window.clearInterval(fallbackPollTimer);
-      fallbackPollTimer = null;
-    }
-  };
-
-  const connectStream = (): void => {
-    if (!options.urls.streamUrl) {
-      ensureFallbackPolling();
-      return;
-    }
-    setStatus("connecting");
-    eventSource = eventSourceFactory(options.urls.streamUrl, streamWithCredentials);
-
-    eventSource.addEventListener("open", () => {
-      if (status !== "live") {
-        setStatus("connecting");
-      }
-    });
-
-    eventSource.addEventListener("sensor.metrics", (event) => {
-      const parsed = parsePanelMetricsEvent((event as MessageEvent).data);
-      if (!parsed) {
-        return;
-      }
-      if (typeof options.panelId === "number" && typeof parsed.panelId === "number" && parsed.panelId !== options.panelId) {
-        return;
-      }
-      applySnapshotUpdate(parsed.update);
-    });
-
-    eventSource.addEventListener("message", (event) => {
-      const parsed = parsePanelMetricsEvent((event as MessageEvent).data);
-      if (!parsed) {
-        return;
-      }
-      if (typeof options.panelId === "number" && typeof parsed.panelId === "number" && parsed.panelId !== options.panelId) {
-        return;
-      }
-      applySnapshotUpdate(parsed.update);
-    });
-
-    eventSource.addEventListener("error", () => {
-      reconnectErrors += 1;
-      setStatus("reconnecting");
-      if (reconnectErrors >= reconnectThreshold) {
-        eventSource?.close();
-        eventSource = null;
-        ensureFallbackPolling();
-      }
-    });
   };
 
   return {
@@ -202,25 +144,46 @@ export function createPanelRealtimeProvider(options: CreatePanelRealtimeProvider
       };
     },
     start(): void {
-      connectStream();
+      stopped = false;
+      if (!options.urls.latestMetricsUrl) {
+        setStatus("error");
+        return;
+      }
+      setStatus("connecting");
+      void readLatestMetrics();
+      if (pollTimer === null) {
+        pollTimer = setInterval(() => {
+          void readLatestMetrics();
+        }, pollIntervalMs);
+      }
       if (staleCheckTimer === null) {
-        staleCheckTimer = window.setInterval(() => {
-          if (lastEventAtMs === null || status === "fallback") {
+        staleCheckTimer = setInterval(() => {
+          if (lastSuccessAtMs === null || status === "error") {
             return;
           }
-          if (now() - lastEventAtMs > staleAfterMs) {
+          if (now() - lastSuccessAtMs > staleAfterMs) {
             setStatus("stale");
           }
         }, 5_000);
       }
+      if (typeof document !== "undefined") {
+        document.addEventListener("visibilitychange", onVisibilityChange);
+      }
     },
     stop(): void {
-      eventSource?.close();
-      eventSource = null;
-      stopFallbackPolling();
+      stopped = true;
+      abortController?.abort();
+      abortController = null;
+      if (pollTimer !== null) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
       if (staleCheckTimer !== null) {
-        window.clearInterval(staleCheckTimer);
+        clearInterval(staleCheckTimer);
         staleCheckTimer = null;
+      }
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
       }
     },
   };

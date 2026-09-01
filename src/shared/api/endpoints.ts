@@ -48,7 +48,7 @@ export function buildTier2SubmitUrl(panelItemsUrl: string | undefined, fallbackS
 export function buildPanelRealtimeUrls(
   realtimeBaseUrl: string | undefined,
   panelId: number | undefined,
-): { streamUrl?: string; latestMetricsUrl?: string } {
+): { latestMetricsUrl?: string } {
   if (!realtimeBaseUrl || typeof panelId !== "number") {
     return {};
   }
@@ -57,7 +57,6 @@ export function buildPanelRealtimeUrls(
     return {};
   }
   return {
-    streamUrl: `${base}/api/feedback/panels/${panelId}/stream`,
     latestMetricsUrl: `${base}/api/feedback/panels/${panelId}/latest-metrics`,
   };
 }

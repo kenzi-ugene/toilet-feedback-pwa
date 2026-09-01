@@ -19,7 +19,6 @@ export interface PanelConfig {
   timezone: string;
   resourceUrl?: string;
   realtimeBaseUrl?: string;
-  panelStreamUrl?: string;
   panelLatestMetricsUrl?: string;
   panelHeartbeatUrl?: string;
   feedbackRatings?: FeedbackRatingConfig[];

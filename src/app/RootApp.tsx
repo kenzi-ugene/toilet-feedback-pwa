@@ -244,7 +244,6 @@ async function buildRuntimeConfig(panelResponse: FeedbackPanelApiResponse | null
   const realtimeUrls = buildPanelRealtimeUrls(loadedConfig.realtimeBaseUrl, loadedConfig.feedbackPanelId);
   return {
     ...loadedConfig,
-    panelStreamUrl: realtimeUrls.streamUrl,
     panelLatestMetricsUrl: realtimeUrls.latestMetricsUrl,
     panelHeartbeatUrl: buildHeartbeatUrl(loadedConfig.realtimeBaseUrl),
   };

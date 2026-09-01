@@ -58,7 +58,6 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
       locationLabel: locationCode,
       panelId: config.feedbackPanelId,
       urls: {
-        streamUrl: config.panelStreamUrl,
         latestMetricsUrl: config.panelLatestMetricsUrl,
       },
       onStatusChange: setRealtimeStatus,
@@ -75,7 +74,7 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
       unsubscribe();
       provider.stop?.();
     };
-  }, [config.feedbackPanelId, config.panelLatestMetricsUrl, config.panelStreamUrl, locationCode]);
+  }, [config.feedbackPanelId, config.panelLatestMetricsUrl, locationCode]);
 
   useEffect(() => {
     const heartbeatUrl = config.panelHeartbeatUrl;

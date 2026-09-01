@@ -101,19 +101,13 @@ function buildRealtimeLabel(status: RealtimeStatus, updatedAt: string): string {
   if (status === "live") {
     return `Live data • Updated ${formatUpdatedAt(updatedAt)}`;
   }
-  if (status === "fallback") {
-    return `Snapshot mode • Last update ${formatUpdatedAt(updatedAt)}`;
-  }
   if (status === "stale") {
     return `Data stale • Last update ${formatUpdatedAt(updatedAt)}`;
-  }
-  if (status === "reconnecting") {
-    return "Reconnecting live data...";
   }
   if (status === "error") {
     return "Live data unavailable";
   }
-  return "Connecting live data...";
+  return "Loading sensor data...";
 }
 
 function formatUpdatedAt(updatedAt: string): string {
