@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
-import { clearGateSetup } from "../../gate/storage";
+import { clearPersistedPanelState } from "../../gate/storage";
 import { buildTier1RatingRows, buildTier2Items } from "../../../entities/panel/feedbackAssets";
 import type { PanelConfig } from "../../../entities/panel/config";
 import { submitNegativeRatingFeedback, submitPositiveRatingFeedback } from "../../../shared/api/feedbackApi";
@@ -212,7 +212,7 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
   }, [config]);
 
   const onLogout = useCallback((): void => {
-    clearGateSetup();
+    clearPersistedPanelState();
     window.location.reload();
   }, []);
 

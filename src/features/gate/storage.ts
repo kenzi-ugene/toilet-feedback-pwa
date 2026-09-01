@@ -1,3 +1,7 @@
+import { clearPanelMetrics } from "../../shared/api/metricsStorage";
+import { readLocalStorageItem, removeLocalStorageItem, writeLocalStorageItem } from "../../shared/lib/browserStorage";
+import { clearPanelSession } from "./panelSession";
+
 const STORAGE_KEY = "simpple-feedback-panel-setup";
 const STORAGE_VERSION = 2;
 
@@ -13,11 +17,11 @@ export interface StoredGateSetup {
 }
 
 function readStored(): StoredSetup | null {
+  const raw = readLocalStorageItem(STORAGE_KEY);
+  if (!raw) {
+    return null;
+  }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
     const data = JSON.parse(raw) as StoredSetup;
     if (
       typeof data.locationCode !== "string" ||
@@ -39,11 +43,17 @@ function writeStored(locationCode: string, password: string): void {
     locationCode: locationCode.trim(),
     password: password.trim(),
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  writeLocalStorageItem(STORAGE_KEY, JSON.stringify(payload));
 }
 
 export function clearGateSetup(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  removeLocalStorageItem(STORAGE_KEY);
+}
+
+export function clearPersistedPanelState(): void {
+  clearGateSetup();
+  clearPanelSession();
+  clearPanelMetrics();
 }
 
 export function getStoredGateSetup(): StoredGateSetup | null {

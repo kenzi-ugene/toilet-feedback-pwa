@@ -1,4 +1,6 @@
 import type { PanelDataProvider, PanelState } from "../types/panelState";
+import { getStoredPanelMetrics, savePanelMetrics, snapshotHasBackupMetrics } from "./metricsStorage";
+import { NETWORK_RETRY_DELAYS_MS } from "../lib/retry";
 
 type RealtimeStatus = "connecting" | "live" | "stale" | "error";
 
@@ -20,15 +22,22 @@ interface RealtimeUrls {
   latestMetricsUrl?: string;
 }
 
+export interface PanelMetricsCache {
+  load(): PanelState | null;
+  save(snapshot: PanelState): void;
+}
+
 interface CreatePanelRealtimeProviderOptions {
   locationLabel: string;
   panelId?: number;
   urls: RealtimeUrls;
   pollIntervalMs?: number;
   staleAfterMs?: number;
+  retryDelaysMs?: readonly number[];
   onStatusChange?: (status: RealtimeStatus) => void;
   now?: () => number;
   fetchImpl?: typeof fetch;
+  metricsCache?: PanelMetricsCache;
 }
 
 interface PanelRealtimeProvider extends PanelDataProvider {
@@ -45,17 +54,34 @@ interface ParsedMetricsEvent {
 const DEFAULT_POLL_INTERVAL_MS = 60_000;
 const DEFAULT_STALE_AFTER_MS = 150_000;
 
+export function createLocalStorageMetricsCache(locationLabel: string, panelId?: number): PanelMetricsCache {
+  return {
+    load(): PanelState | null {
+      return getStoredPanelMetrics(locationLabel, panelId);
+    },
+    save(snapshot: PanelState): void {
+      savePanelMetrics(snapshot, panelId);
+    },
+  };
+}
+
 export function createPanelRealtimeProvider(options: CreatePanelRealtimeProviderOptions): PanelRealtimeProvider {
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const staleAfterMs = options.staleAfterMs ?? DEFAULT_STALE_AFTER_MS;
+  const retryDelaysMs = options.retryDelaysMs ?? NETWORK_RETRY_DELAYS_MS;
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? (() => Date.now());
+  const metricsCache = options.metricsCache ?? createLocalStorageMetricsCache(options.locationLabel, options.panelId);
 
-  let snapshot: PanelState = emptyPanelSnapshot(options.locationLabel);
-  let status: RealtimeStatus = "connecting";
-  let lastSuccessAtMs: number | null = null;
-  let pollTimer: ReturnType<typeof setInterval> | null = null;
+  const cachedSnapshot = metricsCache.load();
+  let snapshot: PanelState = cachedSnapshot
+    ? { ...cachedSnapshot, locationLabel: options.locationLabel }
+    : emptyPanelSnapshot(options.locationLabel);
+  let status: RealtimeStatus = snapshotHasBackupMetrics(snapshot) ? "stale" : "connecting";
+  let lastSuccessAtMs: number | null = parseTimestampMs(snapshot.updatedAt);
+  let pollTimer: ReturnType<typeof setTimeout> | null = null;
   let staleCheckTimer: ReturnType<typeof setInterval> | null = null;
+  let retryAttempt = 0;
   let inFlight = false;
   let stopped = true;
   let abortController: AbortController | null = null;
@@ -75,11 +101,58 @@ export function createPanelRealtimeProvider(options: CreatePanelRealtimeProvider
     emit();
   };
 
+  const persistSnapshot = (nextSnapshot: PanelState): void => {
+    try {
+      metricsCache.save(nextSnapshot);
+    } catch {
+      // Storage is a backup only; live polling should continue without it.
+    }
+  };
+
   const applySnapshotUpdate = (update: Partial<PanelState>): void => {
     snapshot = mergePanelSnapshot(snapshot, update, options.locationLabel);
     lastSuccessAtMs = now();
+    persistSnapshot(snapshot);
     setStatus("live");
     emit();
+  };
+
+  const markPollFailure = (): void => {
+    if (snapshotHasBackupMetrics(snapshot)) {
+      setStatus("stale");
+      return;
+    }
+    setStatus("error");
+  };
+
+  const clearPollTimer = (): void => {
+    if (pollTimer !== null) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
+    }
+  };
+
+  const scheduleNextPoll = (delayMs: number): void => {
+    if (stopped) {
+      return;
+    }
+    clearPollTimer();
+    pollTimer = setTimeout(() => {
+      pollTimer = null;
+      void readLatestMetrics();
+    }, delayMs);
+  };
+
+  const scheduleAfterResult = (ok: boolean): void => {
+    if (ok) {
+      retryAttempt = 0;
+      scheduleNextPoll(pollIntervalMs);
+      return;
+    }
+    const lastIndex = retryDelaysMs.length - 1;
+    const delayMs = retryDelaysMs[Math.min(retryAttempt, lastIndex)] ?? pollIntervalMs;
+    retryAttempt += 1;
+    scheduleNextPoll(delayMs);
   };
 
   const readLatestMetrics = async (): Promise<void> => {
@@ -87,7 +160,9 @@ export function createPanelRealtimeProvider(options: CreatePanelRealtimeProvider
       return;
     }
     inFlight = true;
+    clearPollTimer();
     abortController = new AbortController();
+    let ok = false;
     try {
       const response = await fetchImpl(options.urls.latestMetricsUrl, {
         method: "GET",
@@ -99,27 +174,32 @@ export function createPanelRealtimeProvider(options: CreatePanelRealtimeProvider
         return;
       }
       if (!response.ok) {
-        setStatus("error");
+        markPollFailure();
         return;
       }
       const payload = (await response.json()) as unknown;
       const parsed = parsePanelMetricsPayload(payload);
       if (!parsed) {
-        setStatus("error");
+        markPollFailure();
         return;
       }
       if (typeof options.panelId === "number" && typeof parsed.panelId === "number" && parsed.panelId !== options.panelId) {
+        ok = true;
         return;
       }
       applySnapshotUpdate(parsed.update);
+      ok = true;
     } catch (error) {
       if (stopped || (error instanceof Error && error.name === "AbortError")) {
         return;
       }
-      setStatus("error");
+      markPollFailure();
     } finally {
       inFlight = false;
       abortController = null;
+      if (!stopped) {
+        scheduleAfterResult(ok);
+      }
     }
   };
 
@@ -127,6 +207,10 @@ export function createPanelRealtimeProvider(options: CreatePanelRealtimeProvider
     if (typeof document === "undefined" || document.visibilityState !== "visible") {
       return;
     }
+    void readLatestMetrics();
+  };
+
+  const onOnline = (): void => {
     void readLatestMetrics();
   };
 
@@ -146,16 +230,13 @@ export function createPanelRealtimeProvider(options: CreatePanelRealtimeProvider
     start(): void {
       stopped = false;
       if (!options.urls.latestMetricsUrl) {
-        setStatus("error");
+        markPollFailure();
         return;
       }
-      setStatus("connecting");
-      void readLatestMetrics();
-      if (pollTimer === null) {
-        pollTimer = setInterval(() => {
-          void readLatestMetrics();
-        }, pollIntervalMs);
+      if (!snapshotHasBackupMetrics(snapshot)) {
+        setStatus("connecting");
       }
+      void readLatestMetrics();
       if (staleCheckTimer === null) {
         staleCheckTimer = setInterval(() => {
           if (lastSuccessAtMs === null || status === "error") {
@@ -169,21 +250,24 @@ export function createPanelRealtimeProvider(options: CreatePanelRealtimeProvider
       if (typeof document !== "undefined") {
         document.addEventListener("visibilitychange", onVisibilityChange);
       }
+      if (typeof window !== "undefined") {
+        window.addEventListener("online", onOnline);
+      }
     },
     stop(): void {
       stopped = true;
       abortController?.abort();
       abortController = null;
-      if (pollTimer !== null) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-      }
+      clearPollTimer();
       if (staleCheckTimer !== null) {
         clearInterval(staleCheckTimer);
         staleCheckTimer = null;
       }
       if (typeof document !== "undefined") {
         document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", onOnline);
       }
     },
   };
@@ -197,6 +281,14 @@ function emptyPanelSnapshot(locationLabel: string): PanelState {
     humidityPct: null,
     updatedAt: "N/A",
   };
+}
+
+function parseTimestampMs(updatedAt: string): number | null {
+  if (!updatedAt || updatedAt === "N/A") {
+    return null;
+  }
+  const parsed = Date.parse(updatedAt);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function parsePanelMetricsEvent(rawEvent: string): ParsedMetricsEvent | null {

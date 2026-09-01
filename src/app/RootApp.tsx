@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { FeedbackApp } from "../features/feedback/components/FeedbackApp";
 import { GateScreen } from "../features/gate/components/GateScreen";
-import { getStoredGateSetup, saveGateSetup } from "../features/gate/storage";
+import { getStoredPanelSession, savePanelSession } from "../features/gate/panelSession";
+import { clearPersistedPanelState, getStoredGateSetup, saveGateSetup } from "../features/gate/storage";
 import { OrientationLock, useLandscapeGuard } from "../features/orientation/orientation";
 import type { PanelConfig } from "../entities/panel/config";
 import { loadPanelConfig } from "../entities/panel/config";
@@ -10,33 +11,30 @@ import type { FeedbackPanelApiResponse } from "../shared/api/types";
 import { buildHeartbeatUrl, buildPanelRealtimeUrls } from "../shared/api/endpoints";
 import { authenticateGateWithBackend } from "../shared/api/gateApi";
 import { mapPanelResponseToConfigPatch } from "../shared/api/panelMappers";
+import { nextNetworkRetryDelayMs, waitForRetry } from "../shared/lib/retry";
 
 interface RuntimeState {
   config: PanelConfig;
   locationCode: string;
 }
 
-const RETRY_DELAYS_MS = [2_000, 4_000, 8_000, 15_000, 30_000] as const;
-
-function waitForRetry(ms: number, shouldStop: () => boolean): Promise<void> {
-  return new Promise((resolve) => {
-    const finish = (): void => {
-      window.clearTimeout(timer);
-      window.removeEventListener("online", finish);
-      resolve();
-    };
-
-    const timer = window.setTimeout(finish, ms);
-    window.addEventListener("online", finish, { once: true });
-
-    if (shouldStop()) {
-      finish();
-    }
-  });
-}
-
 function isConfirmedInvalidCredentials(failureReason: string | undefined): boolean {
   return failureReason === "invalid_credentials";
+}
+
+function persistSuccessfulLogin(
+  locationCode: string,
+  password: string,
+  panelResponse: FeedbackPanelApiResponse | null,
+): void {
+  try {
+    saveGateSetup(locationCode, password);
+    if (panelResponse) {
+      savePanelSession(locationCode, panelResponse);
+    }
+  } catch {
+    // Login should still proceed if localStorage is unavailable.
+  }
 }
 
 export function RootApp(): ReactElement {
@@ -46,6 +44,7 @@ export function RootApp(): ReactElement {
   const [gateStatus, setGateStatus] = useState<string | null>(null);
   const [isCheckingGate, setIsCheckingGate] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
+  const [needsBackgroundAuth, setNeedsBackgroundAuth] = useState(false);
   const runtimeStateRef = useRef<RuntimeState | null>(null);
 
   useLandscapeGuard();
@@ -87,10 +86,27 @@ export function RootApp(): ReactElement {
 
     let cancelled = false;
     let attemptIndex = 0;
-
     const shouldStop = (): boolean => cancelled || runtimeStateRef.current !== null;
 
     void (async () => {
+      const cachedSession = getStoredPanelSession();
+      if (cachedSession && cachedSession.locationCode === stored.locationCode) {
+        setGateStatus("Restoring saved panel...");
+        const mergedConfig = await buildRuntimeConfig(cachedSession.panelResponse);
+        if (shouldStop()) {
+          return;
+        }
+        setRuntimeState({
+          config: mergedConfig,
+          locationCode: stored.locationCode,
+        });
+        setNeedsBackgroundAuth(true);
+        setGateError(null);
+        setGateStatus(null);
+        setIsCheckingGate(false);
+        return;
+      }
+
       setIsCheckingGate(true);
       setGateError(null);
       setGateStatus("Saved credentials found. Signing in...");
@@ -102,6 +118,7 @@ export function RootApp(): ReactElement {
         }
 
         if (auth.isValid) {
+          persistSuccessfulLogin(stored.locationCode, stored.password, auth.panelResponse);
           const mergedConfig = await buildRuntimeConfig(auth.panelResponse);
           if (shouldStop()) {
             return;
@@ -110,6 +127,7 @@ export function RootApp(): ReactElement {
             config: mergedConfig,
             locationCode: stored.locationCode,
           });
+          setNeedsBackgroundAuth(false);
           setGateError(null);
           setGateStatus(null);
           setIsCheckingGate(false);
@@ -117,13 +135,14 @@ export function RootApp(): ReactElement {
         }
 
         if (isConfirmedInvalidCredentials(auth.failureReason)) {
+          clearPersistedPanelState();
           setGateStatus(null);
           setGateError("Credentials not valid.");
           setIsCheckingGate(false);
           return;
         }
 
-        const waitMs = RETRY_DELAYS_MS[Math.min(attemptIndex, RETRY_DELAYS_MS.length - 1)];
+        const waitMs = nextNetworkRetryDelayMs(attemptIndex);
         setIsCheckingGate(false);
         setGateStatus(`Network unavailable. Retrying login in ${Math.round(waitMs / 1000)}s...`);
         await waitForRetry(waitMs, shouldStop);
@@ -140,6 +159,65 @@ export function RootApp(): ReactElement {
       cancelled = true;
     };
   }, [initialConfig, runtimeState]);
+
+  useEffect(() => {
+    if (!initialConfig || !runtimeState || !needsBackgroundAuth) {
+      return;
+    }
+
+    const stored = getStoredGateSetup();
+    if (!stored || stored.locationCode !== runtimeState.locationCode) {
+      return;
+    }
+
+    let cancelled = false;
+    let attemptIndex = 0;
+    const shouldStop = (): boolean => cancelled;
+
+    void (async () => {
+      while (!shouldStop()) {
+        const auth = await authenticateGateWithBackend(initialConfig, stored);
+        if (shouldStop()) {
+          return;
+        }
+
+        if (auth.isValid) {
+          persistSuccessfulLogin(stored.locationCode, stored.password, auth.panelResponse);
+          const mergedConfig = await buildRuntimeConfig(auth.panelResponse);
+          if (shouldStop()) {
+            return;
+          }
+          setRuntimeState((current) =>
+            current
+              ? {
+                  ...current,
+                  config: mergedConfig,
+                }
+              : current,
+          );
+          setNeedsBackgroundAuth(false);
+          return;
+        }
+
+        if (isConfirmedInvalidCredentials(auth.failureReason)) {
+          clearPersistedPanelState();
+          setNeedsBackgroundAuth(false);
+          setRuntimeState(null);
+          setGateError("Credentials not valid.");
+          setGateStatus(null);
+          return;
+        }
+
+        const waitMs = nextNetworkRetryDelayMs(attemptIndex);
+        await waitForRetry(waitMs, shouldStop);
+        attemptIndex += 1;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialConfig, needsBackgroundAuth, runtimeState?.locationCode]);
 
   const onGateSubmit = useCallback(
     async (locationCode: string, password: string): Promise<void> => {
@@ -175,16 +253,13 @@ export function RootApp(): ReactElement {
           return;
         }
 
-        try {
-          saveGateSetup(trimmedLocation, trimmedPassword);
-        } catch {
-          // Login should still proceed if localStorage is unavailable.
-        }
+        persistSuccessfulLogin(trimmedLocation, trimmedPassword, auth.panelResponse);
         const mergedConfig = await buildRuntimeConfig(auth.panelResponse);
         setRuntimeState({
           config: mergedConfig,
           locationCode: trimmedLocation,
         });
+        setNeedsBackgroundAuth(false);
         setGateError(null);
         setGateStatus(null);
       } finally {

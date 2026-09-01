@@ -2,6 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import { createPanelRealtimeProvider, mergePanelSnapshot, parsePanelMetricsEvent } from "./panelRealtime";
 import type { PanelState } from "../types/panelState";
 
+function delayedPollResponse(payload: unknown): typeof fetch {
+  return vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => payload,
+  }) as unknown as typeof fetch;
+}
+
 describe("parsePanelMetricsEvent", () => {
   it("maps legacy key names to panel state", () => {
     const result = parsePanelMetricsEvent(
@@ -72,21 +79,25 @@ describe("mergePanelSnapshot", () => {
 
 describe("createPanelRealtimeProvider", () => {
   it("polls latest-metrics and becomes live", async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        panel_id: 7,
-        footfall: 12,
-        temperature: 24.5,
-        humidity: 61,
-      }),
+    const fetchImpl = delayedPollResponse({
+      panel_id: 7,
+      footfall: 12,
+      temperature: 24.5,
+      humidity: 61,
     });
+    const saved: PanelState[] = [];
     const provider = createPanelRealtimeProvider({
       locationLabel: "L1",
       panelId: 7,
       urls: { latestMetricsUrl: "https://example.test/latest-metrics" },
       pollIntervalMs: 60_000,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl,
+      metricsCache: {
+        load: () => null,
+        save: (snapshot) => {
+          saved.push(snapshot);
+        },
+      },
     });
 
     provider.start();
@@ -96,16 +107,93 @@ describe("createPanelRealtimeProvider", () => {
     expect(provider.getSnapshot().footfall).toBe(12);
     expect(provider.getSnapshot().temperatureC).toBe(24.5);
     expect(provider.getSnapshot().humidityPct).toBe(61);
+    expect(saved.at(-1)?.footfall).toBe(12);
     provider.stop();
   });
 
-  it("stays in error and retries when the poll URL is missing", () => {
+  it("stays in error when the poll URL is missing", () => {
     const provider = createPanelRealtimeProvider({
       locationLabel: "L1",
       urls: {},
+      metricsCache: {
+        load: () => null,
+        save: () => undefined,
+      },
     });
     provider.start();
     expect(provider.getStatus()).toBe("error");
+    provider.stop();
+  });
+
+  it("shows cached metrics as stale when polling fails", async () => {
+    const cached: PanelState = {
+      locationLabel: "L1",
+      footfall: 9,
+      temperatureC: 26,
+      humidityPct: 70,
+      updatedAt: "2026-09-01T10:00:00.000Z",
+    };
+    const fetchImpl = vi.fn().mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
+    const provider = createPanelRealtimeProvider({
+      locationLabel: "L1",
+      panelId: 7,
+      urls: { latestMetricsUrl: "https://example.test/latest-metrics" },
+      retryDelaysMs: [20_000],
+      fetchImpl,
+      metricsCache: {
+        load: () => cached,
+        save: () => undefined,
+      },
+    });
+
+    expect(provider.getSnapshot().footfall).toBe(9);
+    expect(provider.getStatus()).toBe("stale");
+    provider.start();
+    await vi.waitFor(() => {
+      expect(fetchImpl).toHaveBeenCalled();
+    });
+    expect(provider.getSnapshot().footfall).toBe(9);
+    expect(provider.getSnapshot().temperatureC).toBe(26);
+    expect(provider.getStatus()).toBe("stale");
+    provider.stop();
+  });
+
+  it("retries a failed poll and updates from the next successful response", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          panel_id: 7,
+          footfall: 15,
+          temperature: 22,
+          humidity: 55,
+        }),
+      }) as unknown as typeof fetch;
+    const saved: PanelState[] = [];
+    const provider = createPanelRealtimeProvider({
+      locationLabel: "L1",
+      panelId: 7,
+      urls: { latestMetricsUrl: "https://example.test/latest-metrics" },
+      pollIntervalMs: 60_000,
+      retryDelaysMs: [20],
+      fetchImpl,
+      metricsCache: {
+        load: () => null,
+        save: (snapshot) => {
+          saved.push(snapshot);
+        },
+      },
+    });
+
+    provider.start();
+    await vi.waitFor(() => {
+      expect(provider.getStatus()).toBe("live");
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(provider.getSnapshot().footfall).toBe(15);
+    expect(saved.at(-1)?.humidityPct).toBe(55);
     provider.stop();
   });
 });
