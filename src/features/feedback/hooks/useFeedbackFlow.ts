@@ -7,7 +7,9 @@ import type { PanelState } from "../../../shared/types/panelState";
 import { isNegativePathRating, type Rating } from "../../../shared/types/rating";
 import { createPanelRealtimeProvider, type RealtimeStatus } from "../../../shared/api/panelRealtime";
 import { sendHeartbeat } from "../../../shared/api/heartbeatApi";
+import { isRemoteAssetUrl } from "../../../shared/lib/remoteAssetCache";
 import { buildInitialFeedbackModel, feedbackReducer } from "../model/reducer";
+import { useCachedRemoteAssets } from "./useCachedRemoteAssets";
 
 const HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
 
@@ -42,8 +44,39 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
   const [snapshot, setSnapshot] = useState<PanelState>(() => emptyPanelSnapshot(locationCode));
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting");
 
-  const tier1Ratings = useMemo(() => buildTier1RatingRows(config), [config]);
-  const tier2Items = useMemo(() => buildTier2Items(config), [config]);
+  const remoteTier1Ratings = useMemo(() => buildTier1RatingRows(config), [config]);
+  const remoteTier2Items = useMemo(() => buildTier2Items(config), [config]);
+  const remoteAssetUrls = useMemo(() => {
+    const urls: string[] = [];
+    for (const row of remoteTier1Ratings) {
+      if (isRemoteAssetUrl(row.imageUrl)) {
+        urls.push(row.imageUrl);
+      }
+    }
+    for (const item of remoteTier2Items) {
+      if (isRemoteAssetUrl(item.iconSrc)) {
+        urls.push(item.iconSrc);
+      }
+    }
+    return urls;
+  }, [remoteTier1Ratings, remoteTier2Items]);
+  const cachedAssetUrls = useCachedRemoteAssets(remoteAssetUrls);
+  const tier1Ratings = useMemo(
+    () =>
+      remoteTier1Ratings.map((row) => ({
+        ...row,
+        imageUrl: row.imageUrl ? (cachedAssetUrls[row.imageUrl] ?? row.imageUrl) : row.imageUrl,
+      })),
+    [cachedAssetUrls, remoteTier1Ratings],
+  );
+  const tier2Items = useMemo(
+    () =>
+      remoteTier2Items.map((item) => ({
+        ...item,
+        iconSrc: item.iconSrc ? (cachedAssetUrls[item.iconSrc] ?? item.iconSrc) : item.iconSrc,
+      })),
+    [cachedAssetUrls, remoteTier2Items],
+  );
 
   useEffect(() => {
     dispatch({ type: "reset", config });
