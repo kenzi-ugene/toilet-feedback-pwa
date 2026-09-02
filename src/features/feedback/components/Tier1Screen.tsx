@@ -12,6 +12,7 @@ interface Tier1ScreenProps {
   realtimeStatus: RealtimeStatus;
   ratings: Tier1RatingRow[];
   logoImageUrl?: string | null;
+  isDemoMode?: boolean;
   onPickRating: (rating: Rating) => Promise<void>;
 }
 
@@ -21,6 +22,7 @@ export function Tier1Screen({
   realtimeStatus,
   ratings,
   logoImageUrl,
+  isDemoMode = false,
   onPickRating,
 }: Tier1ScreenProps): ReactElement {
   const locationLabel =
@@ -79,21 +81,23 @@ export function Tier1Screen({
               ))}
             </div>
           </div>
-          <div className="qr-row">
-            {config.qrCodeBase64 ? (
-              <img
-                src={`data:image/png;base64,${config.qrCodeBase64}`}
-                alt="QR code"
-                className="qr-placeholder qr-image"
-              />
-            ) : (
-              <div
-                className="qr-placeholder"
-                role="img"
-                aria-label="QR code placeholder"
-              />
-            )}
-          </div>
+          {!isDemoMode && (
+            <div className="qr-row">
+              {config.qrCodeBase64 ? (
+                <img
+                  src={`data:image/png;base64,${config.qrCodeBase64}`}
+                  alt="QR code"
+                  className="qr-placeholder qr-image"
+                />
+              ) : (
+                <div
+                  className="qr-placeholder"
+                  role="img"
+                  aria-label="QR code placeholder"
+                />
+              )}
+            </div>
+          )}
           <p className="sanitise-note">The screen is sanitised regularly.</p>
         </div>
       </div>

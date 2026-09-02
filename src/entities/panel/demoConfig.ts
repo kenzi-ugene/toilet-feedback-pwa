@@ -1,7 +1,22 @@
+import type { PanelState } from "../../shared/types/panelState";
 import type { PanelConfig } from "./config";
 
 /** Location code shown while no panel session is stored. Never persisted or sent to the backend. */
-export const DEMO_LOCATION_CODE = "Demo";
+export const DEMO_LOCATION_CODE = "-";
+
+function randomIntInclusive(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export function buildDemoPanelSnapshot(locationLabel: string): PanelState {
+  return {
+    locationLabel,
+    footfall: 1,
+    temperatureC: randomIntInclusive(300, 320) / 10,
+    humidityPct: randomIntInclusive(70, 75),
+    updatedAt: new Date().toISOString(),
+  };
+}
 
 /**
  * Fake panel config used when storage has no saved gate setup / panel session yet

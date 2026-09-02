@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { buildTier1RatingRows, buildTier2Items, resolveResourceImageUrl } from "../../../entities/panel/feedbackAssets";
 import type { PanelConfig } from "../../../entities/panel/config";
+import { buildDemoPanelSnapshot } from "../../../entities/panel/demoConfig";
 import { submitNegativeRatingFeedback, submitPositiveRatingFeedback } from "../../../shared/api/feedbackApi";
 import type { PanelState } from "../../../shared/types/panelState";
 import { isNegativePathRating, type Rating } from "../../../shared/types/rating";
@@ -44,11 +45,17 @@ function emptyPanelSnapshot(locationLabel: string): PanelState {
   };
 }
 
-export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseFeedbackFlowResult {
+export function useFeedbackFlow(
+  config: PanelConfig,
+  locationCode: string,
+  isDemoMode = false,
+): UseFeedbackFlowResult {
   const [model, dispatch] = useReducer(feedbackReducer, buildInitialFeedbackModel(config));
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
-  const [snapshot, setSnapshot] = useState<PanelState>(() => emptyPanelSnapshot(locationCode));
-  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting");
+  const [snapshot, setSnapshot] = useState<PanelState>(() =>
+    isDemoMode ? buildDemoPanelSnapshot(locationCode) : emptyPanelSnapshot(locationCode),
+  );
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>(isDemoMode ? "live" : "connecting");
 
   const tier1Ratings = useMemo(() => buildTier1RatingRows(config), [config]);
   const tier2Items = useMemo(() => buildTier2Items(config), [config]);
@@ -70,6 +77,12 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
   }, [locationCode]);
 
   useEffect(() => {
+    if (isDemoMode) {
+      setSnapshot(buildDemoPanelSnapshot(locationCode));
+      setRealtimeStatus("live");
+      return;
+    }
+
     const provider = createPanelRealtimeProvider({
       locationLabel: locationCode,
       panelId: config.feedbackPanelId,
@@ -90,7 +103,7 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
       unsubscribe();
       provider.stop?.();
     };
-  }, [config.feedbackPanelId, config.panelLatestMetricsUrl, locationCode]);
+  }, [config.feedbackPanelId, config.panelLatestMetricsUrl, isDemoMode, locationCode]);
 
   useEffect(() => {
     const heartbeatUrl = config.panelHeartbeatUrl;

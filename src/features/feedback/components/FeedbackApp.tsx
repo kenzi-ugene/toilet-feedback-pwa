@@ -30,7 +30,7 @@ export function FeedbackApp({ config, locationCode, onLogout, isDemoMode = false
     onSubmitTier2Feedback,
     onDismissTier3,
     onBackToTier1,
-  } = useFeedbackFlow(config, locationCode);
+  } = useFeedbackFlow(config, locationCode, isDemoMode);
 
   const isTier2 = model.screen === "tier2";
   const backgroundStyle = backgroundImageUrl
@@ -48,6 +48,7 @@ export function FeedbackApp({ config, locationCode, onLogout, isDemoMode = false
             realtimeStatus={realtimeStatus}
             ratings={tier1Ratings}
             logoImageUrl={logoImageUrl}
+            isDemoMode={isDemoMode}
             onPickRating={onPickRating}
           />
         )}
