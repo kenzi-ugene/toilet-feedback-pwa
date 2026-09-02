@@ -11,6 +11,7 @@ interface Tier1ScreenProps {
   snapshot: PanelState;
   realtimeStatus: RealtimeStatus;
   ratings: Tier1RatingRow[];
+  logoImageUrl?: string | null;
   onPickRating: (rating: Rating) => Promise<void>;
 }
 
@@ -19,6 +20,7 @@ export function Tier1Screen({
   snapshot,
   realtimeStatus,
   ratings,
+  logoImageUrl,
   onPickRating,
 }: Tier1ScreenProps): ReactElement {
   const locationLabel =
@@ -46,7 +48,9 @@ export function Tier1Screen({
           />
         </aside>
         <div className="glass-panel tier1-panel">
-          <div className="brand" aria-hidden="true" />
+          <div className="brand" aria-hidden="true">
+            {logoImageUrl ? <img className="brand-logo" src={logoImageUrl} alt="" /> : null}
+          </div>
           <p className="sanitise-note">
             {buildRealtimeLabel(realtimeStatus, snapshot.updatedAt)}
           </p>

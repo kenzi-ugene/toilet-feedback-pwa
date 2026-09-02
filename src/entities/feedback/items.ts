@@ -1,4 +1,4 @@
-/** Tier-2 tile: `iconSrc` is the resolved image URL (S3 base + panel item `image`), or null if missing. */
+/** Tier-2 tile: `iconSrc` is a local `public/` PNG so the kiosk still shows icons offline. */
 export interface FeedbackItem {
   id: string;
   label: string;

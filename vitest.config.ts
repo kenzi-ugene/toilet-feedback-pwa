@@ -7,6 +7,7 @@ export default defineConfig({
     env: {
       VITE_PANEL_STREAM_BASE_URL: "http://ifsc.test",
       VITE_FEEDBACK_PANEL_ITEMS_PATH: "/api/feedback/getFeedbackPanelItems",
+      VITE_AWS_RESOURCE_BASE_URL: "https://assets.test",
     },
   },
 });

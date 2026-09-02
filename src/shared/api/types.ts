@@ -10,6 +10,9 @@ export interface FeedbackPanelApiResponse {
   enable_ratings_feedback?: boolean | number;
   feedback_ratings?: FeedbackRatingConfig[];
   items?: FeedbackItemConfig[];
+  logo?: string | null;
+  secondary_logo?: string | null;
+  custom_background_image?: string | null;
 }
 
 export type GateAuthFailureReason =

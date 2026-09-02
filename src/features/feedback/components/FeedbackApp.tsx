@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import type { CSSProperties, ReactElement } from "react";
 import type { PanelConfig } from "../../../entities/panel/config";
 import { LoadingOverlay } from "../../../shared/ui/LoadingOverlay";
 import { Tier1Screen } from "./Tier1Screen";
@@ -19,6 +19,8 @@ export function FeedbackApp({ config, locationCode }: FeedbackAppProps): ReactEl
     tier1Ratings,
     tier2Items,
     isSubmittingFeedback,
+    backgroundImageUrl,
+    logoImageUrl,
     onPickRating,
     onToggleCategory,
     onSubmitTier2Feedback,
@@ -28,17 +30,21 @@ export function FeedbackApp({ config, locationCode }: FeedbackAppProps): ReactEl
   } = useFeedbackFlow(config, locationCode);
 
   const isTier2 = model.screen === "tier2";
+  const backgroundStyle = backgroundImageUrl
+    ? ({ "--panel-bg-image": `url("${backgroundImageUrl}")` } as CSSProperties)
+    : undefined;
 
   return (
     <>
       <div className="shell">
-        <div className={isTier2 ? "bg bg-tier2" : "bg"} />
+        <div className={isTier2 ? "bg bg-tier2" : "bg"} style={backgroundStyle} />
         {model.screen === "tier1" && (
           <Tier1Screen
             config={config}
             snapshot={snapshot}
             realtimeStatus={realtimeStatus}
             ratings={tier1Ratings}
+            logoImageUrl={logoImageUrl}
             onPickRating={onPickRating}
           />
         )}

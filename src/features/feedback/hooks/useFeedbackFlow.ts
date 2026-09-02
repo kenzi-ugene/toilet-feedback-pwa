@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { clearPersistedPanelState } from "../../gate/storage";
-import { buildTier1RatingRows, buildTier2Items } from "../../../entities/panel/feedbackAssets";
+import { buildTier1RatingRows, buildTier2Items, resolveResourceImageUrl } from "../../../entities/panel/feedbackAssets";
 import type { PanelConfig } from "../../../entities/panel/config";
 import { submitNegativeRatingFeedback, submitPositiveRatingFeedback } from "../../../shared/api/feedbackApi";
 import type { PanelState } from "../../../shared/types/panelState";
 import { isNegativePathRating, type Rating } from "../../../shared/types/rating";
 import { createPanelRealtimeProvider, type RealtimeStatus } from "../../../shared/api/panelRealtime";
 import { sendHeartbeat } from "../../../shared/api/heartbeatApi";
-import { isRemoteAssetUrl } from "../../../shared/lib/remoteAssetCache";
 import { buildInitialFeedbackModel, feedbackReducer } from "../model/reducer";
-import { useCachedRemoteAssets } from "./useCachedRemoteAssets";
 
 const HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
 
@@ -20,12 +18,22 @@ interface UseFeedbackFlowResult {
   tier2Items: ReturnType<typeof buildTier2Items>;
   isSubmittingFeedback: boolean;
   realtimeStatus: RealtimeStatus;
+  backgroundImageUrl: string | null;
+  logoImageUrl: string | null;
   onPickRating: (rating: Rating) => Promise<void>;
   onToggleCategory: (categoryId: string) => void;
   onSubmitTier2Feedback: () => Promise<void>;
   onDismissTier3: () => void;
   onBackToTier1: () => void;
   onLogout: () => void;
+}
+
+function panelAssetUrl(imagePath: string | null | undefined): string | null {
+  try {
+    return resolveResourceImageUrl(imagePath);
+  } catch {
+    return null;
+  }
 }
 
 function emptyPanelSnapshot(locationLabel: string): PanelState {
@@ -44,38 +52,15 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
   const [snapshot, setSnapshot] = useState<PanelState>(() => emptyPanelSnapshot(locationCode));
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting");
 
-  const remoteTier1Ratings = useMemo(() => buildTier1RatingRows(config), [config]);
-  const remoteTier2Items = useMemo(() => buildTier2Items(config), [config]);
-  const remoteAssetUrls = useMemo(() => {
-    const urls: string[] = [];
-    for (const row of remoteTier1Ratings) {
-      if (isRemoteAssetUrl(row.imageUrl)) {
-        urls.push(row.imageUrl);
-      }
-    }
-    for (const item of remoteTier2Items) {
-      if (isRemoteAssetUrl(item.iconSrc)) {
-        urls.push(item.iconSrc);
-      }
-    }
-    return urls;
-  }, [remoteTier1Ratings, remoteTier2Items]);
-  const cachedAssetUrls = useCachedRemoteAssets(remoteAssetUrls);
-  const tier1Ratings = useMemo(
-    () =>
-      remoteTier1Ratings.map((row) => ({
-        ...row,
-        imageUrl: row.imageUrl ? (cachedAssetUrls[row.imageUrl] ?? row.imageUrl) : row.imageUrl,
-      })),
-    [cachedAssetUrls, remoteTier1Ratings],
+  const tier1Ratings = useMemo(() => buildTier1RatingRows(config), [config]);
+  const tier2Items = useMemo(() => buildTier2Items(config), [config]);
+  const backgroundImageUrl = useMemo(
+    () => panelAssetUrl(config.customBackgroundImage),
+    [config.customBackgroundImage],
   );
-  const tier2Items = useMemo(
-    () =>
-      remoteTier2Items.map((item) => ({
-        ...item,
-        iconSrc: item.iconSrc ? (cachedAssetUrls[item.iconSrc] ?? item.iconSrc) : item.iconSrc,
-      })),
-    [cachedAssetUrls, remoteTier2Items],
+  const logoImageUrl = useMemo(
+    () => panelAssetUrl(config.logoImage) ?? panelAssetUrl(config.secondaryLogoImage),
+    [config.logoImage, config.secondaryLogoImage],
   );
 
   useEffect(() => {
@@ -256,6 +241,8 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
     tier2Items,
     isSubmittingFeedback,
     realtimeStatus,
+    backgroundImageUrl,
+    logoImageUrl,
     onPickRating,
     onToggleCategory,
     onSubmitTier2Feedback,

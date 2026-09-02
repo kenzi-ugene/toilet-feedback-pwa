@@ -8,7 +8,19 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg", "pwa-192x192.png", "pwa-512x512.png"],
+      includeAssets: [
+        "favicon.svg",
+        "pwa-192x192.png",
+        "pwa-512x512.png",
+        "awesome_face.png",
+        "good_face.png",
+        "neutral_face.png",
+        "sad_face.png",
+        "panel-background.png",
+        "panel-background-tier2.png",
+        "reload.png",
+        "icon-*.png",
+      ],
       manifest: {
         name: "Toilet Feedback Panel",
         short_name: "Toilet Panel",

@@ -33,6 +33,19 @@ export function mapPanelResponseToConfigPatch(data: FeedbackPanelApiResponse | n
   if (typeof data.qr_code === "string" && data.qr_code.trim() !== "") {
     patch.qrCodeBase64 = data.qr_code.trim();
   }
+  const logoImage = pickNonEmptyString(panel.logo) ?? pickNonEmptyString(data.logo);
+  if (logoImage) {
+    patch.logoImage = logoImage;
+  }
+  const secondaryLogoImage = pickNonEmptyString(panel.secondary_logo) ?? pickNonEmptyString(data.secondary_logo);
+  if (secondaryLogoImage) {
+    patch.secondaryLogoImage = secondaryLogoImage;
+  }
+  const customBackgroundImage =
+    pickNonEmptyString(panel.custom_background_image) ?? pickNonEmptyString(data.custom_background_image);
+  if (customBackgroundImage) {
+    patch.customBackgroundImage = customBackgroundImage;
+  }
   return patch;
 }
 

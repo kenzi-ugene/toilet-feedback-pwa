@@ -23,6 +23,23 @@ const LOCAL_RATING_IMAGE_BY_RATING: Record<Rating, string> = {
   poor: "/sad_face.png",
 };
 
+const LOCAL_TIER2_ICONS: ReadonlyArray<{ label: string; iconSrc: string }> = [
+  { label: "Dirty Wall", iconSrc: "/icon-dirty-wall.png" },
+  { label: "Dirty WC", iconSrc: "/icon-dirty-wc.png" },
+  { label: "Dirty Basin", iconSrc: "/icon-dirty-basin.png" },
+  { label: "Dirty Cubicle", iconSrc: "/icon-dirty-cubicle.png" },
+  { label: "Wet Floor", iconSrc: "/icon-wet-floor.png" },
+  { label: "Smelly", iconSrc: "/icon-smelly.png" },
+  { label: "Toilet Roll Empty", iconSrc: "/icon-toilet-roll-empty.png" },
+  { label: "Soap Empty", iconSrc: "/icon-soap-empty.png" },
+  { label: "Sanitary Bin Full", iconSrc: "/icon-sanitary-bin-full.png" },
+  { label: "Faulty Water Fixture", iconSrc: "/icon-faulty-water-fixture.png" },
+  { label: "Soap Dispenser Faulty", iconSrc: "/icon-soap-dispenser-faulty.png" },
+  { label: "Faulty Lights", iconSrc: "/icon-faulty-lights.png" },
+];
+
+const DEFAULT_TIER2_ICON = "/icon-dirty-wc.png";
+
 function normalizeResourceBaseUrl(base: string): string {
   return base.trim().replace(/\/+$/, "");
 }
@@ -95,11 +112,10 @@ export function buildTier1RatingRows(config: PanelConfig): Tier1RatingRow[] {
     if (!rating) {
       continue;
     }
-    const imageUrl = resolveResourceImageUrl(row.image) ?? LOCAL_RATING_IMAGE_BY_RATING[rating];
     rows.push({
       rating,
       label: row.caption,
-      imageUrl,
+      imageUrl: LOCAL_RATING_IMAGE_BY_RATING[rating],
       emojiFallback: EMOJI_BY_RATING[rating],
     });
   }
@@ -124,11 +140,16 @@ export function buildTier2Items(config: PanelConfig): FeedbackItem[] {
   return feedbackItems;
 }
 
+export function localTier2IconByName(name: string): string {
+  const normalized = name.trim().toLowerCase();
+  const matched = LOCAL_TIER2_ICONS.find((icon) => icon.label.toLowerCase() === normalized);
+  return matched?.iconSrc ?? DEFAULT_TIER2_ICON;
+}
+
 function toFeedbackItem(item: FeedbackItemConfig): FeedbackItem | null {
-  const iconSrc = resolveResourceImageUrl(item.image);
   return {
     id: String(item.id),
     label: item.name,
-    iconSrc: iconSrc ?? null,
+    iconSrc: localTier2IconByName(item.name),
   };
 }

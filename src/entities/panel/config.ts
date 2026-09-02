@@ -25,6 +25,9 @@ export interface PanelConfig {
   enableRatingsFeedback?: boolean | null;
   feedbackItems?: FeedbackItemConfig[];
   qrCodeBase64?: string;
+  logoImage?: string | null;
+  secondaryLogoImage?: string | null;
+  customBackgroundImage?: string | null;
   feedbackPanelId?: number;
   feedbackPanelItemsApiUrl?: string;
 }

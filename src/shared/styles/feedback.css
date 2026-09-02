@@ -64,7 +64,7 @@
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-image: url("/panel-background.png");
+  background-image: var(--panel-bg-image, url("/panel-background.png"));
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
@@ -73,7 +73,7 @@
 .bg-tier2 {
   background-image:
     linear-gradient(rgba(8, 20, 12, 0.42), rgba(8, 20, 12, 0.42)),
-    url("/panel-background-tier2.png");
+    var(--panel-bg-image, url("/panel-background-tier2.png"));
 }
 
 .bg::after {
@@ -84,6 +84,14 @@
   opacity: 0.35;
   mix-blend-mode: overlay;
   pointer-events: none;
+}
+
+.brand-logo {
+  display: block;
+  margin: 0 auto;
+  max-height: 3.5rem;
+  max-width: min(12rem, 40%);
+  object-fit: contain;
 }
 
 .location {
