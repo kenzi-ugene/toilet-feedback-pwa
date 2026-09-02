@@ -66,11 +66,6 @@ export function FeedbackApp({ config, locationCode, onLogout, isDemoMode = false
       </div>
       <LoadingOverlay isVisible={isSubmittingFeedback} text="Submitting feedback..." />
       <ConnectionPing />
-      {isDemoMode && (
-        <span className="demo-badge" aria-hidden="true">
-          Demo
-        </span>
-      )}
       {!isDemoMode && (
         <>
           <button type="button" className="logout-btn" onClick={onLogout}>

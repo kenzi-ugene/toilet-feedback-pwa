@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { FeedbackApp } from "../features/feedback/components/FeedbackApp";
 import { GateScreen } from "../features/gate/components/GateScreen";
 import { HiddenLoginTrigger } from "../features/gate/components/HiddenLoginTrigger";
+import { AppVersion } from "../shared/ui/AppVersion";
 import { getStoredPanelSession, savePanelSession } from "../features/gate/panelSession";
 import { clearPersistedPanelState, getStoredGateSetup, saveGateSetup } from "../features/gate/storage";
 import { OrientationLock, useLandscapeGuard } from "../features/orientation/orientation";
@@ -310,7 +311,12 @@ export function RootApp(): ReactElement {
   }
 
   if (!initialConfig) {
-    return <div className="gate-screen">Loading...</div>;
+    return (
+      <>
+        <div className="gate-screen">Loading...</div>
+        <AppVersion />
+      </>
+    );
   }
 
   if (!runtimeState) {
@@ -319,6 +325,7 @@ export function RootApp(): ReactElement {
         <>
           <FeedbackApp config={DEMO_PANEL_CONFIG} locationCode={DEMO_LOCATION_CODE} onLogout={onLogout} isDemoMode />
           <HiddenLoginTrigger onActivated={() => setShowLoginOverride(true)} />
+          <AppVersion isDemo />
           <OrientationLock />
         </>
       );
@@ -332,6 +339,7 @@ export function RootApp(): ReactElement {
           status={gateStatus}
           onSubmit={onGateSubmit}
         />
+        <AppVersion />
         <OrientationLock />
       </>
     );
@@ -340,6 +348,7 @@ export function RootApp(): ReactElement {
   return (
     <>
       <FeedbackApp config={runtimeState.config} locationCode={runtimeState.locationCode} onLogout={onLogout} />
+      <AppVersion />
       <OrientationLock />
     </>
   );

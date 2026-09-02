@@ -9,3 +9,5 @@ interface ImportMetaEnv {
   /** Required at runtime. Base URL for panel asset paths (e.g. S3). Set in .env — see .env.example. */
   readonly VITE_AWS_RESOURCE_BASE_URL?: string;
 }
+
+declare const __APP_VERSION__: string;
