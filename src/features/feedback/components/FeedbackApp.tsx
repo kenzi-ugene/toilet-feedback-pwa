@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactElement } from "react";
 import type { PanelConfig } from "../../../entities/panel/config";
+import { ConnectionPing } from "../../../shared/ui/ConnectionPing";
 import { LoadingOverlay } from "../../../shared/ui/LoadingOverlay";
 import { Tier1Screen } from "./Tier1Screen";
 import { Tier2Screen } from "./Tier2Screen";
@@ -9,9 +10,12 @@ import { useFeedbackFlow } from "../hooks/useFeedbackFlow";
 interface FeedbackAppProps {
   config: PanelConfig;
   locationCode: string;
+  onLogout: () => void;
+  /** Hides Log out/Reload so the hidden tap gesture stays the only way to reach the gate. */
+  isDemoMode?: boolean;
 }
 
-export function FeedbackApp({ config, locationCode }: FeedbackAppProps): ReactElement {
+export function FeedbackApp({ config, locationCode, onLogout, isDemoMode = false }: FeedbackAppProps): ReactElement {
   const {
     model,
     snapshot,
@@ -26,7 +30,6 @@ export function FeedbackApp({ config, locationCode }: FeedbackAppProps): ReactEl
     onSubmitTier2Feedback,
     onDismissTier3,
     onBackToTier1,
-    onLogout,
   } = useFeedbackFlow(config, locationCode);
 
   const isTier2 = model.screen === "tier2";
@@ -61,12 +64,27 @@ export function FeedbackApp({ config, locationCode }: FeedbackAppProps): ReactEl
         {model.screen === "tier3" && <Tier3Screen resetMs={config.thankYouResetMs} onDismiss={onDismissTier3} />}
       </div>
       <LoadingOverlay isVisible={isSubmittingFeedback} text="Submitting feedback..." />
-      <button type="button" className="logout-btn" onClick={onLogout}>
-        Log out
-      </button>
-      <button type="button" className="reload-btn" aria-label="Reload panel items" onClick={() => window.location.reload()}>
-        <img src="/reload.png" alt="" aria-hidden="true" className="reload-btn-icon" />
-      </button>
+      <ConnectionPing />
+      {isDemoMode && (
+        <span className="demo-badge" aria-hidden="true">
+          Demo
+        </span>
+      )}
+      {!isDemoMode && (
+        <>
+          <button type="button" className="logout-btn" onClick={onLogout}>
+            Log out
+          </button>
+          <button
+            type="button"
+            className="reload-btn"
+            aria-label="Reload panel items"
+            onClick={() => window.location.reload()}
+          >
+            <img src="/reload.png" alt="" aria-hidden="true" className="reload-btn-icon" />
+          </button>
+        </>
+      )}
     </>
   );
 }

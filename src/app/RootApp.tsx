@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { FeedbackApp } from "../features/feedback/components/FeedbackApp";
 import { GateScreen } from "../features/gate/components/GateScreen";
+import { HiddenLoginTrigger } from "../features/gate/components/HiddenLoginTrigger";
 import { getStoredPanelSession, savePanelSession } from "../features/gate/panelSession";
 import { clearPersistedPanelState, getStoredGateSetup, saveGateSetup } from "../features/gate/storage";
 import { OrientationLock, useLandscapeGuard } from "../features/orientation/orientation";
 import type { PanelConfig } from "../entities/panel/config";
 import { loadPanelConfig } from "../entities/panel/config";
+import { DEMO_LOCATION_CODE, DEMO_PANEL_CONFIG } from "../entities/panel/demoConfig";
 import type { FeedbackPanelApiResponse } from "../shared/api/types";
 import { buildHeartbeatUrl, buildPanelRealtimeUrls } from "../shared/api/endpoints";
 import { authenticateGateWithBackend } from "../shared/api/gateApi";
@@ -45,7 +47,10 @@ export function RootApp(): ReactElement {
   const [isCheckingGate, setIsCheckingGate] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
   const [needsBackgroundAuth, setNeedsBackgroundAuth] = useState(false);
+  const [showLoginOverride, setShowLoginOverride] = useState(false);
+  const [hasStoredGateSetup, setHasStoredGateSetup] = useState(() => getStoredGateSetup() !== null);
   const runtimeStateRef = useRef<RuntimeState | null>(null);
+  const loggedOutRef = useRef(false);
 
   useLandscapeGuard();
 
@@ -86,7 +91,7 @@ export function RootApp(): ReactElement {
 
     let cancelled = false;
     let attemptIndex = 0;
-    const shouldStop = (): boolean => cancelled || runtimeStateRef.current !== null;
+    const shouldStop = (): boolean => cancelled || loggedOutRef.current || runtimeStateRef.current !== null;
 
     void (async () => {
       const cachedSession = getStoredPanelSession();
@@ -172,7 +177,7 @@ export function RootApp(): ReactElement {
 
     let cancelled = false;
     let attemptIndex = 0;
-    const shouldStop = (): boolean => cancelled;
+    const shouldStop = (): boolean => cancelled || loggedOutRef.current;
 
     void (async () => {
       while (!shouldStop()) {
@@ -269,6 +274,23 @@ export function RootApp(): ReactElement {
     [initialConfig],
   );
 
+  const onLogout = useCallback((): void => {
+    // Flips synchronously (unlike React state) so any in-flight background auto-login
+    // from before logout bails out on its next check instead of re-saving the
+    // just-cleared credentials via persistSuccessfulLogin.
+    loggedOutRef.current = true;
+    setNeedsBackgroundAuth(false);
+    setRuntimeState(null);
+    // Go straight to a blank gate screen (not demo mode) so it's unambiguous that
+    // logout actually happened, instead of reappearing as a fake-data screen that
+    // looks identical to being logged in.
+    setShowLoginOverride(true);
+    setHasStoredGateSetup(false);
+    setGateError(null);
+    setGateStatus(null);
+    clearPersistedPanelState();
+  }, []);
+
   if (bootError) {
     return (
       <pre
@@ -292,6 +314,16 @@ export function RootApp(): ReactElement {
   }
 
   if (!runtimeState) {
+    if (!hasStoredGateSetup && !showLoginOverride) {
+      return (
+        <>
+          <FeedbackApp config={DEMO_PANEL_CONFIG} locationCode={DEMO_LOCATION_CODE} onLogout={onLogout} isDemoMode />
+          <HiddenLoginTrigger onActivated={() => setShowLoginOverride(true)} />
+          <OrientationLock />
+        </>
+      );
+    }
+
     return (
       <>
         <GateScreen
@@ -307,7 +339,7 @@ export function RootApp(): ReactElement {
 
   return (
     <>
-      <FeedbackApp config={runtimeState.config} locationCode={runtimeState.locationCode} />
+      <FeedbackApp config={runtimeState.config} locationCode={runtimeState.locationCode} onLogout={onLogout} />
       <OrientationLock />
     </>
   );

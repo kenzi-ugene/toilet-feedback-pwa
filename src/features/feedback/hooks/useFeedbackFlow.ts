@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
-import { clearPersistedPanelState } from "../../gate/storage";
 import { buildTier1RatingRows, buildTier2Items, resolveResourceImageUrl } from "../../../entities/panel/feedbackAssets";
 import type { PanelConfig } from "../../../entities/panel/config";
 import { submitNegativeRatingFeedback, submitPositiveRatingFeedback } from "../../../shared/api/feedbackApi";
@@ -25,7 +24,6 @@ interface UseFeedbackFlowResult {
   onSubmitTier2Feedback: () => Promise<void>;
   onDismissTier3: () => void;
   onBackToTier1: () => void;
-  onLogout: () => void;
 }
 
 function panelAssetUrl(imagePath: string | null | undefined): string | null {
@@ -229,11 +227,6 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
     dispatch({ type: "tier2BackToTier1", config });
   }, [config]);
 
-  const onLogout = useCallback((): void => {
-    clearPersistedPanelState();
-    window.location.reload();
-  }, []);
-
   return {
     model,
     snapshot,
@@ -248,6 +241,5 @@ export function useFeedbackFlow(config: PanelConfig, locationCode: string): UseF
     onSubmitTier2Feedback,
     onDismissTier3,
     onBackToTier1,
-    onLogout,
   };
 }

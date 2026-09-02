@@ -9,6 +9,61 @@
   width: 100%;
 }
 
+.demo-badge {
+  position: fixed;
+  left: 0.5rem;
+  bottom: 0.35rem;
+  z-index: 20;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: none;
+}
+
+.connection-ping {
+  position: fixed;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.connection-ping-dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #9aa5b1;
+}
+
+.connection-ping-online .connection-ping-dot {
+  background: #2ecc71;
+  animation: connection-ping-pulse 2s ease-out infinite;
+}
+
+.connection-ping-offline .connection-ping-dot {
+  background: #e74c3c;
+}
+
+.connection-ping-checking .connection-ping-dot {
+  background: #f1c40f;
+}
+
+@keyframes connection-ping-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(46, 204, 113, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(46, 204, 113, 0);
+  }
+}
+
 .feedback-loading-overlay {
   position: fixed;
   inset: 0;
