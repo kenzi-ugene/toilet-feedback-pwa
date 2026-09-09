@@ -29,7 +29,7 @@ export function FeedbackApp({ config, locationCode, isDemoMode = false }: Feedba
     onSubmitTier2Feedback,
     onDismissTier3,
     onBackToTier1,
-  } = useFeedbackFlow(config, locationCode);
+  } = useFeedbackFlow(config, locationCode, isDemoMode);
 
   const isTier2 = model.screen === "tier2";
   const backgroundStyle = backgroundImageUrl
