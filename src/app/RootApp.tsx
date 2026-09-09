@@ -323,7 +323,7 @@ export function RootApp(): ReactElement {
     if (!hasStoredGateSetup && !showLoginOverride) {
       return (
         <>
-          <FeedbackApp config={DEMO_PANEL_CONFIG} locationCode={DEMO_LOCATION_CODE} onLogout={onLogout} isDemoMode />
+          <FeedbackApp config={DEMO_PANEL_CONFIG} locationCode={DEMO_LOCATION_CODE} isDemoMode />
           <HiddenLoginTrigger onActivated={() => setShowLoginOverride(true)} />
           <AppVersion isDemo />
           <OrientationLock />
@@ -347,7 +347,8 @@ export function RootApp(): ReactElement {
 
   return (
     <>
-      <FeedbackApp config={runtimeState.config} locationCode={runtimeState.locationCode} onLogout={onLogout} />
+      <FeedbackApp config={runtimeState.config} locationCode={runtimeState.locationCode} />
+      <HiddenLoginTrigger onActivated={onLogout} />
       <AppVersion />
       <OrientationLock />
     </>

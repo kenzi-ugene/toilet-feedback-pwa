@@ -10,12 +10,11 @@ import { useFeedbackFlow } from "../hooks/useFeedbackFlow";
 interface FeedbackAppProps {
   config: PanelConfig;
   locationCode: string;
-  onLogout: () => void;
-  /** Hides Log out/Reload so the hidden tap gesture stays the only way to reach the gate. */
+  /** Hides Reload so the hidden tap gesture stays the only interactive affordance. */
   isDemoMode?: boolean;
 }
 
-export function FeedbackApp({ config, locationCode, onLogout, isDemoMode = false }: FeedbackAppProps): ReactElement {
+export function FeedbackApp({ config, locationCode, isDemoMode = false }: FeedbackAppProps): ReactElement {
   const {
     model,
     snapshot,
@@ -30,7 +29,7 @@ export function FeedbackApp({ config, locationCode, onLogout, isDemoMode = false
     onSubmitTier2Feedback,
     onDismissTier3,
     onBackToTier1,
-  } = useFeedbackFlow(config, locationCode, isDemoMode);
+  } = useFeedbackFlow(config, locationCode);
 
   const isTier2 = model.screen === "tier2";
   const backgroundStyle = backgroundImageUrl
@@ -48,7 +47,6 @@ export function FeedbackApp({ config, locationCode, onLogout, isDemoMode = false
             realtimeStatus={realtimeStatus}
             ratings={tier1Ratings}
             logoImageUrl={logoImageUrl}
-            isDemoMode={isDemoMode}
             onPickRating={onPickRating}
           />
         )}
@@ -66,20 +64,20 @@ export function FeedbackApp({ config, locationCode, onLogout, isDemoMode = false
       </div>
       <LoadingOverlay isVisible={isSubmittingFeedback} text="Submitting feedback..." />
       <ConnectionPing />
+      {isDemoMode && (
+        <span className="demo-badge" aria-hidden="true">
+          Demo
+        </span>
+      )}
       {!isDemoMode && (
-        <>
-          <button type="button" className="logout-btn" onClick={onLogout}>
-            Log out
-          </button>
-          <button
-            type="button"
-            className="reload-btn"
-            aria-label="Reload panel items"
-            onClick={() => window.location.reload()}
-          >
-            <img src="/reload.png" alt="" aria-hidden="true" className="reload-btn-icon" />
-          </button>
-        </>
+        <button
+          type="button"
+          className="reload-btn"
+          aria-label="Reload panel items"
+          onClick={() => window.location.reload()}
+        >
+          <img src="/reload.png" alt="" aria-hidden="true" className="reload-btn-icon" />
+        </button>
       )}
     </>
   );

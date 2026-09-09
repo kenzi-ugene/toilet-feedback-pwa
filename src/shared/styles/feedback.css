@@ -521,19 +521,6 @@ img.rating-face {
   box-sizing: border-box;
 }
 
-.logout-btn {
-  position: fixed;
-  left: 97%;
-  top: 2%;
-  transform: translateX(-50%);
-  z-index: 20;
-  padding: 0.4rem 0.9rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0);
-}
 .reload-btn {
   position: fixed;
   left: 92.5%;
