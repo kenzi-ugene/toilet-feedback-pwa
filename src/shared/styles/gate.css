@@ -89,7 +89,7 @@
 
 .hidden-login-trigger {
   position: fixed;
-  right: 0;
+  left: 0;
   bottom: 0;
   width: 88px;
   height: 88px;

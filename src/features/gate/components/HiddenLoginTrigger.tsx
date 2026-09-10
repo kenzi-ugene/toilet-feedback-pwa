@@ -9,7 +9,7 @@ interface HiddenLoginTriggerProps {
 }
 
 /**
- * Invisible hit-zone pinned to the bottom-right corner. Tapping it 10 times within
+ * Invisible hit-zone pinned to the bottom-left corner. Tapping it 10 times within
  * TAP_WINDOW_MS reveals the panel access (login) screen. Lets staff reach the gate
  * without exposing it to the public kiosk view.
  */
