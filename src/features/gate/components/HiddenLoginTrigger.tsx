@@ -11,7 +11,7 @@ interface HiddenLoginTriggerProps {
 /**
  * Invisible hit-zone pinned to the bottom-left corner. Tapping it 10 times within
  * TAP_WINDOW_MS reveals the panel access (login) screen. Lets staff reach the gate
- * without exposing it to the public kiosk view.
+ * without exposing it to the public kiosk view..
  */
 export function HiddenLoginTrigger({ onActivated }: HiddenLoginTriggerProps): ReactElement {
   const tapCountRef = useRef(0);
