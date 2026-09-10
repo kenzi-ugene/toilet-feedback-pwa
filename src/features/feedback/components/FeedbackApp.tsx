@@ -10,8 +10,7 @@ import { useFeedbackFlow } from "../hooks/useFeedbackFlow";
 interface FeedbackAppProps {
   config: PanelConfig;
   locationCode: string;
-  /** hi 
-   * Hides Reload so the hidden tap gesture stays the only interactive affordance. */
+  /** Hides Reload so the hidden tap gesture stays the only interactive affordance. */
   isDemoMode?: boolean;
 }
 
