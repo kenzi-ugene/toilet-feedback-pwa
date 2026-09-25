@@ -1,6 +1,6 @@
 import { ratingToSubmitLabel } from "../../entities/panel/config";
 import type { Rating } from "../types/rating";
-import { buildFeedbackEndpoints, buildTier2SubmitUrl } from "./endpoints";
+import { buildFeedbackEndpoints, buildTier2SubmitUrl } from "../../entities/panel/endpoints";
 import { getCurrentIpv4Address } from "./ip";
 
 /**
