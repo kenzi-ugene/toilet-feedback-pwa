@@ -5,8 +5,8 @@ import { buildDemoPanelSnapshot } from "../../../entities/panel/demoConfig";
 import { submitNegativeRatingFeedback, submitPositiveRatingFeedback } from "../../../shared/api/feedbackApi";
 import type { PanelState } from "../../../shared/types/panelState";
 import { isNegativePathRating, type Rating } from "../../../shared/types/rating";
-import { createPanelRealtimeProvider, type RealtimeStatus } from "../../../shared/api/panelRealtime";
-import { sendHeartbeat } from "../../../shared/api/heartbeatApi";
+import { createPanelRealtimeProvider, type RealtimeStatus } from "../../../entities/panel/realtime";
+import { sendHeartbeat } from "../../../entities/panel/heartbeat";
 import { buildInitialFeedbackModel, feedbackReducer } from "../model/reducer";
 
 const HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
